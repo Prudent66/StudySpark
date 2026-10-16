@@ -19,7 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -133,7 +133,7 @@ fun HomeScreen(
             item {
                 Box(modifier = Modifier.fadeInSlideUp(delayMillis = 350)) {
                     PrimaryActionCard(
-                        icon = Icons.Filled.MenuBook,
+                        icon = Icons.AutoMirrored.Filled.MenuBook,
                         title = "Create from PDF",
                         subtitle = "Upload a handout and generate a quiz",
                         onClick = onCreateFromPdf
