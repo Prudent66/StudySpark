@@ -17,8 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -35,10 +33,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.studyspark.app.ui.components.fadeInSlideUp
 
 /**
  * The Home screen of StudySpark.
  * A welcoming, calm landing screen with the two primary actions.
+ * Elements fade in and slide up gracefully when the screen loads.
  */
 @Composable
 fun HomeScreen(
@@ -57,7 +57,7 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Branded icon circle
+            // Branded icon circle — fades in first
             Box(
                 modifier = Modifier
                     .size(96.dp)
@@ -69,7 +69,8 @@ fun HomeScreen(
                                 MaterialTheme.colorScheme.secondary
                             )
                         )
-                    ),
+                    )
+                    .fadeInSlideUp(delayMillis = 0),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -82,78 +83,87 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Welcome message
-            Text(
-                text = "Welcome To",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "StudySpark",
-                style = MaterialTheme.typography.displaySmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 42.sp
-                ),
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Turn your handouts into\ninteractive study quizzes.",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Welcome message — fades in second
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fadeInSlideUp(delayMillis = 150)
+            ) {
+                Text(
+                    text = "Welcome To",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "StudySpark",
+                    style = MaterialTheme.typography.displaySmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 42.sp
+                    ),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Turn your handouts into\ninteractive study quizzes.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Primary action: Create from PDF
-            PrimaryActionCard(
-                icon = Icons.Filled.MenuBook,
-                title = "Create from PDF",
-                subtitle = "Upload a handout and generate a quiz",
-                onClick = onCreateFromPdf
-            )
+            // First action card — fades in third
+            Box(modifier = Modifier.fadeInSlideUp(delayMillis = 350)) {
+                PrimaryActionCard(
+                    icon = Icons.Filled.MenuBook,
+                    title = "Create from PDF",
+                    subtitle = "Upload a handout and generate a quiz",
+                    onClick = onCreateFromPdf
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Secondary action: Create manually
-            PrimaryActionCard(
-                icon = Icons.Filled.EditNote,
-                title = "Create Manually",
-                subtitle = "Write your own questions and answers",
-                onClick = onCreateManually
-            )
+            // Second action card — fades in fourth
+            Box(modifier = Modifier.fadeInSlideUp(delayMillis = 500)) {
+                PrimaryActionCard(
+                    icon = Icons.Filled.EditNote,
+                    title = "Create Manually",
+                    subtitle = "Write your own questions and answers",
+                    onClick = onCreateManually
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Coming soon card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+            // Coming soon card — fades in last
+            Box(modifier = Modifier.fadeInSlideUp(delayMillis = 650)) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    ),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "Study Center",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Flashcards, plans, and more — coming soon",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "Study Center",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Flashcards, plans, and more — coming soon",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
