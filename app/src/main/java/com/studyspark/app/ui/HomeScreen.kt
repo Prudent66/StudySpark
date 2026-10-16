@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -71,14 +72,10 @@ fun HomeScreen(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = 24.dp,
-                vertical = 32.dp
-            ),
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- Branded icon ---
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
@@ -105,7 +102,6 @@ fun HomeScreen(
                 }
             }
 
-            // --- Welcome text ---
             item {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -134,7 +130,6 @@ fun HomeScreen(
                 }
             }
 
-            // --- Action cards ---
             item {
                 Box(modifier = Modifier.fadeInSlideUp(delayMillis = 350)) {
                     PrimaryActionCard(
@@ -157,7 +152,6 @@ fun HomeScreen(
                 }
             }
 
-            // --- Saved quizzes section ---
             if (state.savedQuizzes.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -170,7 +164,10 @@ fun HomeScreen(
                     )
                 }
 
-                items(state.savedQuizzes, key = { it.id }) { quiz ->
+                items(
+                    items = state.savedQuizzes,
+                    key = { quiz -> quiz.id }
+                ) { quiz ->
                     QuizListCard(
                         quiz = quiz,
                         onClick = { onOpenQuiz(quiz.id) },
@@ -204,7 +201,6 @@ fun HomeScreen(
                 }
             }
 
-            // --- Study Center coming soon ---
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Box(modifier = Modifier.fadeInSlideUp(delayMillis = 650)) {
