@@ -2,7 +2,7 @@ package com.studyspark.app.ui.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.studyspark.app.domain.model.Question
+import com.studyspark.app.domain.model.DraftQuestion
 import com.studyspark.app.domain.model.Quiz
 import com.studyspark.app.data.repository.QuizRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,13 +13,16 @@ import java.util.UUID
 
 data class ManualEditorUiState(
     val quizTitle: String = "",
-    val questions: List<Question> = emptyList(),
+    val questions: List<DraftQuestion> = emptyList(),
     val isSaving: Boolean = false,
     val savedSuccessfully: Boolean = false,
     val errorMessage: String? = null
 ) {
     val canSave: Boolean
-        get() = quizTitle.isNotBlank() && questions.isNotEmpty() && !isSaving
+        get() = quizTitle.isNotBlank() &&
+                questions.isNotEmpty() &&
+                questions.all { it.isValid() } &&
+                !isSaving
 }
 
 class ManualEditorViewModel(
@@ -33,14 +36,14 @@ class ManualEditorViewModel(
         _uiState.value = _uiState.value.copy(quizTitle = newTitle, errorMessage = null)
     }
 
-    fun addQuestion(question: Question) {
+    fun addQuestion() {
         _uiState.value = _uiState.value.copy(
-            questions = _uiState.value.questions + question,
+            questions = _uiState.value.questions + DraftQuestion(),
             errorMessage = null
         )
     }
 
-    fun updateQuestion(updated: Question) {
+    fun updateQuestion(updated: DraftQuestion) {
         _uiState.value = _uiState.value.copy(
             questions = _uiState.value.questions.map { if (it.id == updated.id) updated else it },
             errorMessage = null
@@ -55,8 +58,20 @@ class ManualEditorViewModel(
 
     fun save() {
         val state = _uiState.value
-        if (!state.canSave) {
-            _uiState.value = state.copy(errorMessage = "Add a title and at least one question.")
+
+        if (state.quizTitle.isBlank()) {
+            _uiState.value = state.copy(errorMessage = "Please enter a quiz title.")
+            return
+        }
+        if (state.questions.isEmpty()) {
+            _uiState.value = state.copy(errorMessage = "Add at least one question.")
+            return
+        }
+        val invalid = state.questions.firstOrNull { !it.isValid() }
+        if (invalid != null) {
+            _uiState.value = state.copy(
+                errorMessage = "Fill in every question and all four options before saving."
+            )
             return
         }
 
@@ -67,7 +82,7 @@ class ManualEditorViewModel(
                     id = UUID.randomUUID().toString(),
                     title = state.quizTitle.trim(),
                     sourceLabel = "Manual",
-                    questions = state.questions,
+                    questions = state.questions.map { it.toQuestion() },
                     timeLimitSeconds = null
                 )
                 repository.saveQuiz(quiz)
@@ -83,12 +98,4 @@ class ManualEditorViewModel(
             }
         }
     }
-
-    fun createBlankQuestion(): Question = Question(
-        id = UUID.randomUUID().toString(),
-        text = "",
-        options = listOf("", "", "", ""),
-        correctOptionIndex = 0,
-        explanation = null
-    )
 }

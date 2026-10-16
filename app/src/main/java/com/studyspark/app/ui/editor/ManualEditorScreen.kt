@@ -90,13 +90,13 @@ fun ManualEditorScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { viewModel.addQuestion(viewModel.createBlankQuestion()) },
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Add Question") }
-            )
-        }
+       floatingActionButton = {
+    ExtendedFloatingActionButton(
+        onClick = { viewModel.addQuestion() },
+        icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+        text = { Text("Add Question") }
+    )
+}
     ) { padding ->
         Column(
             modifier = Modifier

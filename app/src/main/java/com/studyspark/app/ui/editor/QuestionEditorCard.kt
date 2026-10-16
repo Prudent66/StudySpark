@@ -24,16 +24,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.studyspark.app.domain.model.Question
+import com.studyspark.app.domain.model.DraftQuestion
 
-/**
- * A card for editing a single multiple-choice question.
- */
 @Composable
 fun QuestionEditorCard(
     questionNumber: Int,
-    question: Question,
-    onQuestionChange: (Question) -> Unit,
+    question: DraftQuestion,
+    onQuestionChange: (DraftQuestion) -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -44,7 +41,6 @@ fun QuestionEditorCard(
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: "Question N" + Delete button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -67,7 +63,6 @@ fun QuestionEditorCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Question text
             OutlinedTextField(
                 value = question.text,
                 onValueChange = { onQuestionChange(question.copy(text = it)) },
@@ -88,7 +83,6 @@ fun QuestionEditorCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Four options
             val optionLabels = listOf("A", "B", "C", "D")
             question.options.forEachIndexed { index, option ->
                 Row(
@@ -127,10 +121,9 @@ fun QuestionEditorCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Optional explanation
             OutlinedTextField(
-                value = question.explanation ?: "",
-                onValueChange = { onQuestionChange(question.copy(explanation = it.ifBlank { null })) },
+                value = question.explanation,
+                onValueChange = { onQuestionChange(question.copy(explanation = it)) },
                 label = { Text("Explanation (optional)") },
                 placeholder = { Text("Why is this the correct answer?") },
                 modifier = Modifier.fillMaxWidth(),
