@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -33,7 +34,6 @@ android {
         compose = true
     }
     composeOptions {
-        // This is the crucial line: it must match the Kotlin version above
         kotlinCompilerExtensionVersion = "1.5.8"
     }
 }
@@ -59,7 +59,10 @@ dependencies {
     // Room Database (Local Storage)
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    annotationProcessor("androidx.room:room-compiler:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+
+    // KSP (Kotlin Symbol Processing) — needed for Room
+    // (registered at the project level)
 
     // PDF Processing
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
@@ -71,6 +74,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("androidx.room:room-testing:2.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
