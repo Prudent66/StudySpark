@@ -1,3 +1,4 @@
+import com.studyspark.app.ui.editor.ManualEditorScreen
 package com.studyspark.app.ui.navigation
 
 import androidx.compose.runtime.Composable
@@ -30,13 +31,12 @@ fun StudySparkNavGraph() {
             )
         }
 
-        composable(Routes.MANUAL_EDITOR) {
-            PlaceholderScreen(
-                title = "Manual Quiz Editor",
-                description = "Write your own questions and answers. Coming in Phase 2.",
-                onBack = { navController.popBackStack() }
-            )
-        }
+       composable(Routes.MANUAL_EDITOR) {
+    ManualEditorScreen(
+        onBack = { navController.popBackStack() },
+        onSaved = { navController.popBackStack() }
+		)
+	}
 
         composable(Routes.QUIZ_SETUP) {
             PlaceholderScreen(
