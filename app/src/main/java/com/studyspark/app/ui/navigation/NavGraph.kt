@@ -1,4 +1,3 @@
-import com.studyspark.app.ui.editor.ManualEditorScreen
 package com.studyspark.app.ui.navigation
 
 import androidx.compose.runtime.Composable
@@ -6,6 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.studyspark.app.ui.HomeScreen
+import com.studyspark.app.ui.editor.ManualEditorScreen
 import com.studyspark.app.ui.screens.PlaceholderScreen
 
 @Composable
@@ -31,12 +31,12 @@ fun StudySparkNavGraph() {
             )
         }
 
-       composable(Routes.MANUAL_EDITOR) {
-    ManualEditorScreen(
-        onBack = { navController.popBackStack() },
-        onSaved = { navController.popBackStack() }
-		)
-	}
+        composable(Routes.MANUAL_EDITOR) {
+            ManualEditorScreen(
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() }
+            )
+        }
 
         composable(Routes.QUIZ_SETUP) {
             PlaceholderScreen(
