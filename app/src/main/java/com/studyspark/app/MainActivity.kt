@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Greeting("StudySpark MVP")
+                    Greeting()
                 }
             }
         }
@@ -31,9 +31,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(
-            text = "Hello $name!",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Text(text = "Welcome To StudySpark!")
     }
 }
+
