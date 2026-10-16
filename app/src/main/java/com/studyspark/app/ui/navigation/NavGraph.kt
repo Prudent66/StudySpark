@@ -19,7 +19,10 @@ fun StudySparkNavGraph() {
         composable(Routes.HOME) {
             HomeScreen(
                 onCreateFromPdf = { navController.navigate(Routes.IMPORT_PDF) },
-                onCreateManually = { navController.navigate(Routes.MANUAL_EDITOR) }
+                onCreateManually = { navController.navigate(Routes.MANUAL_EDITOR) },
+                onOpenQuiz = { quizId ->
+                    navController.navigate("${Routes.QUIZ_SETUP}/$quizId")
+                }
             )
         }
 
@@ -38,10 +41,11 @@ fun StudySparkNavGraph() {
             )
         }
 
-        composable(Routes.QUIZ_SETUP) {
+        composable("${Routes.QUIZ_SETUP}/{quizId}") { backStackEntry ->
+            val quizId = backStackEntry.arguments?.getString("quizId") ?: ""
             PlaceholderScreen(
                 title = "Quiz Setup",
-                description = "Choose the number of questions and set a time limit.",
+                description = "Configure your quiz (id: $quizId). Coming in Phase 3B.",
                 onBack = { navController.popBackStack() }
             )
         }
