@@ -66,21 +66,23 @@ fun StudySparkNavGraph() {
                 onEditQuiz = {
                     navController.navigate("${Routes.MANUAL_EDITOR}?quizId=$quizId")
                 },
-                onStartQuiz = { questionCount, timeLimitSeconds, randomize ->
+                onStartQuiz = { questionCount, timeLimitSeconds, randomize, blockScreenshots -> // Handle new param
                     navController.navigate(
-                        "${Routes.QUIZ_TAKING}/$quizId?count=$questionCount&time=$timeLimitSeconds&randomize=$randomize"
+                        "${Routes.QUIZ_TAKING}/$quizId?count=$questionCount&time=$timeLimitSeconds&randomize=$randomize&blockScreenshots=$blockScreenshots"
                     )
                 }
             )
         }
 
         composable(
-            route = "${Routes.QUIZ_TAKING}/{quizId}?count={count}&time={time}&randomize={randomize}",
+            // Add blockScreenshots to route
+            route = "${Routes.QUIZ_TAKING}/{quizId}?count={count}&time={time}&randomize={randomize}&blockScreenshots={blockScreenshots}",
             arguments = listOf(
                 navArgument("quizId") { type = NavType.StringType },
                 navArgument("count") { type = NavType.IntType },
                 navArgument("time") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("randomize") { type = NavType.BoolType }
+                navArgument("randomize") { type = NavType.BoolType },
+                navArgument("blockScreenshots") { type = NavType.BoolType } // Add argument definition
             )
         ) { backStackEntry ->
             val quizId = backStackEntry.arguments?.getString("quizId") ?: ""
@@ -88,12 +90,14 @@ fun StudySparkNavGraph() {
             val timeStr = backStackEntry.arguments?.getString("time")
             val time = if (timeStr == "null" || timeStr == null) null else timeStr.toIntOrNull()
             val randomize = backStackEntry.arguments?.getBoolean("randomize") ?: false
+            val blockScreenshots = backStackEntry.arguments?.getBoolean("blockScreenshots") ?: true // Extract new arg
 
             QuizTakingScreen(
                 quizId = quizId,
                 questionCount = count,
                 timeLimitSeconds = time,
                 randomize = randomize,
+                blockScreenshots = blockScreenshots, // Pass to screen
                 onNavigateToResults = { resultState ->
                     lastQuizResult = resultState
                     navController.navigate(Routes.RESULTS) {

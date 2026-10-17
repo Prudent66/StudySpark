@@ -1,6 +1,5 @@
 package com.studyspark.app.ui.setup
 
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -46,8 +46,8 @@ import kotlin.math.roundToInt
 fun QuizSetupScreen(
     quizId: String,
     onBack: () -> Unit,
-    onEditQuiz: () -> Unit, // NEW
-    onStartQuiz: (questionCount: Int, timeLimitSeconds: Int?, randomize: Boolean) -> Unit
+    onEditQuiz: () -> Unit,
+    onStartQuiz: (questionCount: Int, timeLimitSeconds: Int?, randomize: Boolean, blockScreenshots: Boolean) -> Unit // UPDATED signature
 ) {
     val context = LocalContext.current
     val viewModel: QuizSetupViewModel = viewModel(
@@ -65,18 +65,18 @@ fun QuizSetupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-    title = { Text("Quiz Setup") },
-    navigationIcon = {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-        }
-    },
-    actions = {
-        IconButton(onClick = onEditQuiz) {
-            Icon(Icons.Filled.Edit, contentDescription = "Edit Quiz")
-        }
-    }
-)
+                title = { Text("Quiz Setup") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onEditQuiz) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Edit Quiz")
+                    }
+                }
+            )
         }
     ) { padding ->
         if (state.isLoading) {
@@ -107,7 +107,7 @@ fun QuizSetupScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp) // Reduced spacing to fit new card
         ) {
             Text(
                 text = quiz.title,
@@ -219,12 +219,42 @@ fun QuizSetupScreen(
                 }
             }
 
+            // NEW: Block Screenshots toggle
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Block Screenshots",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Prevents screen captures during the quiz",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = state.blockScreenshots,
+                        onCheckedChange = { viewModel.toggleBlockScreenshots(it) }
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
                 onClick = {
                     val timeLimit = if (state.isTimed) state.timeLimitMinutes * 60 else null
-                    onStartQuiz(state.questionCount, timeLimit, state.randomizeQuestions)
+                    onStartQuiz(state.questionCount, timeLimit, state.randomizeQuestions, state.blockScreenshots) // Pass the new flag
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),

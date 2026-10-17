@@ -1,5 +1,6 @@
 package com.studyspark.app.ui.taking
 
+import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -64,11 +66,29 @@ fun QuizTakingScreen(
     questionCount: Int,
     timeLimitSeconds: Int?,
     randomize: Boolean,
+    blockScreenshots: Boolean, // NEW parameter
     onNavigateToResults: (QuizResult) -> Unit,
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val view = LocalView.current
+
+    // NEW: Apply FLAG_SECURE dynamically based on the toggle
+    DisposableEffect(blockScreenshots) {
+        val window = (view.context as? android.app.Activity)?.window
+        if (blockScreenshots) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        
+        onDispose {
+            // Always clear the flag when leaving the screen
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
     val viewModel: QuizTakingViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
@@ -98,10 +118,9 @@ fun QuizTakingScreen(
         }
     }
 
-    // NEW: Anti-Cheat Warning Dialog
     if (state.showWarningDialog) {
         AlertDialog(
-            onDismissRequest = { /* Force them to click the button */ },
+            onDismissRequest = { },
             icon = { Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Exam Mode Enabled") },
             text = {

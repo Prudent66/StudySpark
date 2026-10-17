@@ -16,6 +16,7 @@ data class QuizSetupUiState(
     val isTimed: Boolean = false,
     val timeLimitMinutes: Int = 10,
     val randomizeQuestions: Boolean = false,
+    val blockScreenshots: Boolean = true, // NEW: Default to true
     val errorMessage: String? = null
 ) {
     val maxQuestions: Int get() = quiz?.questions?.size ?: 0
@@ -71,5 +72,10 @@ class QuizSetupViewModel(
 
     fun toggleRandomize(randomize: Boolean) {
         _uiState.value = _uiState.value.copy(randomizeQuestions = randomize)
+    }
+
+    // NEW: Toggle function
+    fun toggleBlockScreenshots(block: Boolean) {
+        _uiState.value = _uiState.value.copy(blockScreenshots = block)
     }
 }
