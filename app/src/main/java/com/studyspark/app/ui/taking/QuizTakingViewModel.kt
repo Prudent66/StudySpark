@@ -25,7 +25,9 @@ data class QuizTakingUiState(
     val showFinishDialog: Boolean = false,
     val isSubmitted: Boolean = false,
     val result: QuizResult? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val hasLeftApp: Boolean = false,
+    val showWarningDialog: Boolean = true // NEW: Starts as true to show warning first
 ) {
     val currentQuestion: Question?
         get() = activeQuestions.getOrNull(currentIndex)
@@ -86,6 +88,9 @@ class QuizTakingViewModel(
         timerJob = viewModelScope.launch {
             while (isActive) {
                 delay(1000L)
+                // Pause timer if warning dialog is showing
+                if (_uiState.value.showWarningDialog) continue 
+                
                 val current = _uiState.value.timeLeftSeconds ?: break
                 if (current <= 1) {
                     _uiState.value = _uiState.value.copy(timeLeftSeconds = 0, isTimerRunning = false)
@@ -96,6 +101,10 @@ class QuizTakingViewModel(
                 }
             }
         }
+    }
+
+    fun acknowledgeWarning() {
+        _uiState.value = _uiState.value.copy(showWarningDialog = false)
     }
 
     fun selectAnswer(questionId: String, optionIndex: Int) {
@@ -133,6 +142,14 @@ class QuizTakingViewModel(
         _uiState.value = _uiState.value.copy(showFinishDialog = false)
     }
 
+    fun onAppBackgrounded() {
+        // Only auto-submit if they haven't submitted AND they have already acknowledged the warning
+        if (!_uiState.value.isSubmitted && !_uiState.value.showWarningDialog) {
+            _uiState.value = _uiState.value.copy(hasLeftApp = true)
+            submitQuiz() 
+        }
+    }
+
     fun submitQuiz() {
         val state = _uiState.value
         val quiz = state.quiz ?: return
@@ -148,6 +165,7 @@ class QuizTakingViewModel(
         _uiState.value = state.copy(
             isSubmitted = true,
             showFinishDialog = false,
+            showWarningDialog = false,
             isTimerRunning = false,
             result = result
         )
