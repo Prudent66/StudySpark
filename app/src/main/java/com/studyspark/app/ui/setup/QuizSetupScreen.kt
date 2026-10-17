@@ -1,5 +1,6 @@
 package com.studyspark.app.ui.setup
 
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +46,7 @@ import kotlin.math.roundToInt
 fun QuizSetupScreen(
     quizId: String,
     onBack: () -> Unit,
+    onEditQuiz: () -> Unit, // NEW
     onStartQuiz: (questionCount: Int, timeLimitSeconds: Int?, randomize: Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -63,13 +65,18 @@ fun QuizSetupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Quiz Setup") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+    title = { Text("Quiz Setup") },
+    navigationIcon = {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
+    },
+    actions = {
+        IconButton(onClick = onEditQuiz) {
+            Icon(Icons.Filled.Edit, contentDescription = "Edit Quiz")
+        }
+    }
+)
         }
     ) { padding ->
         if (state.isLoading) {

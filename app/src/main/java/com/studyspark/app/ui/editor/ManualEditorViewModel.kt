@@ -12,12 +12,14 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 data class ManualEditorUiState(
+    val quizId: String? = null, // Null means we are creating a new quiz
     val quizTitle: String = "",
     val questions: List<DraftQuestion> = emptyList(),
     val isSaving: Boolean = false,
     val savedSuccessfully: Boolean = false,
     val errorMessage: String? = null
 ) {
+    val isEditing: Boolean get() = quizId != null
     val canSave: Boolean
         get() = quizTitle.isNotBlank() &&
                 questions.isNotEmpty() &&
@@ -26,11 +28,31 @@ data class ManualEditorUiState(
 }
 
 class ManualEditorViewModel(
-    private val repository: QuizRepository
+    private val repository: QuizRepository,
+    initialQuizId: String? = null
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ManualEditorUiState())
+    private val _uiState = MutableStateFlow(ManualEditorUiState(quizId = initialQuizId))
     val uiState: StateFlow<ManualEditorUiState> = _uiState.asStateFlow()
+
+    init {
+        if (initialQuizId != null) {
+            loadExistingQuiz(initialQuizId)
+        }
+    }
+
+    private fun loadExistingQuiz(quizId: String) {
+        viewModelScope.launch {
+            val quiz = repository.getQuiz(quizId)
+            if (quiz != null) {
+                _uiState.value = _uiState.value.copy(
+                    quizId = quiz.id,
+                    quizTitle = quiz.title,
+                    questions = quiz.questions.map { DraftQuestion.fromQuestion(it) }
+                )
+            }
+        }
+    }
 
     fun updateTitle(newTitle: String) {
         _uiState.value = _uiState.value.copy(quizTitle = newTitle, errorMessage = null)
@@ -67,11 +89,8 @@ class ManualEditorViewModel(
             _uiState.value = state.copy(errorMessage = "Add at least one question.")
             return
         }
-        val invalid = state.questions.firstOrNull { !it.isValid() }
-        if (invalid != null) {
-            _uiState.value = state.copy(
-                errorMessage = "Fill in every question and all four options before saving."
-            )
+        if (state.questions.any { !it.isValid() }) {
+            _uiState.value = state.copy(errorMessage = "Fill in every question and all four options.")
             return
         }
 
@@ -79,11 +98,11 @@ class ManualEditorViewModel(
             _uiState.value = state.copy(isSaving = true, errorMessage = null)
             try {
                 val quiz = Quiz(
-                    id = UUID.randomUUID().toString(),
+                    id = state.quizId ?: UUID.randomUUID().toString(), // Keep existing ID or create new
                     title = state.quizTitle.trim(),
                     sourceLabel = "Manual",
                     questions = state.questions.map { it.toQuestion() },
-                    timeLimitSeconds = null
+                    timeLimitSeconds = null // Keep null here, setup screen handles time
                 )
                 repository.saveQuiz(quiz)
                 _uiState.value = _uiState.value.copy(

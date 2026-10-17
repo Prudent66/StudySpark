@@ -1,9 +1,11 @@
 package com.studyspark.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.studyspark.app.ui.HomeScreen
 import com.studyspark.app.ui.editor.ManualEditorScreen
 import com.studyspark.app.ui.setup.QuizSetupScreen
@@ -30,13 +32,23 @@ fun StudySparkNavGraph() {
         composable(Routes.IMPORT_PDF) {
             PlaceholderScreen(
                 title = "Import PDF",
-                description = "Upload a handout, extract text, and generate a quiz. Coming in Phase 4.",
+                description = "Upload a handout, extract text, and generate a quiz. Coming soon.",
                 onBack = { navController.popBackStack() }
             )
         }
 
-        composable(Routes.MANUAL_EDITOR) {
+        // Route accepts optional quizId (null = create new)
+        composable(
+            route = "${Routes.MANUAL_EDITOR}?quizId={quizId}",
+            arguments = listOf(navArgument("quizId") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { backStackEntry ->
+            val quizId = backStackEntry.arguments?.getString("quizId")
             ManualEditorScreen(
+                quizId = quizId,
                 onBack = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() }
             )
@@ -47,8 +59,10 @@ fun StudySparkNavGraph() {
             QuizSetupScreen(
                 quizId = quizId,
                 onBack = { navController.popBackStack() },
+                onEditQuiz = {
+                    navController.navigate("${Routes.MANUAL_EDITOR}?quizId=$quizId")
+                },
                 onStartQuiz = { questionCount, timeLimitSeconds, randomize ->
-                    // Navigate to Quiz Taking (Placeholder for now, built in next step)
                     navController.navigate(
                         "${Routes.QUIZ_TAKING}/$quizId?count=$questionCount&time=$timeLimitSeconds&randomize=$randomize"
                     )

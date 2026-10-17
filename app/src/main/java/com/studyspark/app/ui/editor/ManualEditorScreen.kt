@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -44,21 +45,22 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.studyspark.app.data.local.StudySparkDatabase
 import com.studyspark.app.data.repository.QuizRepository
-import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManualEditorScreen(
+    quizId: String? = null,
     onBack: () -> Unit,
     onSaved: () -> Unit
 ) {
     val context = LocalContext.current
     val viewModel: ManualEditorViewModel = viewModel(
+        key = quizId ?: "new_quiz", // Unique key so ViewModel resets between different quizzes
         factory = viewModelFactory {
             initializer {
                 val db = StudySparkDatabase.getDatabase(context)
                 val repo = QuizRepository(db.quizDao())
-                ManualEditorViewModel(repo)
+                ManualEditorViewModel(repo, quizId)
             }
         }
     )
@@ -66,14 +68,10 @@ fun ManualEditorScreen(
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Handle successful save
     LaunchedEffect(state.savedSuccessfully) {
-        if (state.savedSuccessfully) {
-            onSaved()
-        }
+        if (state.savedSuccessfully) onSaved()
     }
 
-    // Handle errors via snackbar
     LaunchedEffect(state.errorMessage) {
         state.errorMessage?.let { snackbarHostState.showSnackbar(it) }
     }
@@ -81,7 +79,7 @@ fun ManualEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Create Quiz Manually") },
+                title = { Text(if (state.isEditing) "Edit Quiz" else "Create Quiz Manually") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -90,13 +88,13 @@ fun ManualEditorScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-       floatingActionButton = {
-    ExtendedFloatingActionButton(
-        onClick = { viewModel.addQuestion() },
-        icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-        text = { Text("Add Question") }
-    )
-}
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { viewModel.addQuestion() },
+                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                text = { Text("Add Question") }
+            )
+        }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -105,7 +103,6 @@ fun ManualEditorScreen(
                 .padding(horizontal = 16.dp)
                 .imePadding()
         ) {
-            // Quiz title
             OutlinedTextField(
                 value = state.quizTitle,
                 onValueChange = viewModel::updateTitle,
@@ -118,12 +115,9 @@ fun ManualEditorScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Questions list
             if (state.questions.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -161,7 +155,6 @@ fun ManualEditorScreen(
                                 )
                             } else {
                                 Icon(Icons.Filled.Check, contentDescription = null)
-                                Spacer(modifier = Modifier.height(4.dp))
                                 Text("  Save Quiz", fontWeight = FontWeight.SemiBold)
                             }
                         }
