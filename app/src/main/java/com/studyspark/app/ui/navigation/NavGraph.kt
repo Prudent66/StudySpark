@@ -10,6 +10,11 @@ import com.studyspark.app.ui.HomeScreen
 import com.studyspark.app.ui.editor.ManualEditorScreen
 import com.studyspark.app.ui.setup.QuizSetupScreen
 import com.studyspark.app.ui.screens.PlaceholderScreen
+import com.studyspark.app.ui.taking.QuizTakingScreen
+import com.studyspark.app.ui.taking.ResultsScreen
+import com.studyspark.app.domain.model.QuizResult
+
+var lastQuizResult: QuizResult? = null
 
 @Composable
 fun StudySparkNavGraph() {
@@ -37,7 +42,6 @@ fun StudySparkNavGraph() {
             )
         }
 
-        // Route accepts optional quizId (null = create new)
         composable(
             route = "${Routes.MANUAL_EDITOR}?quizId={quizId}",
             arguments = listOf(navArgument("quizId") {
@@ -70,21 +74,53 @@ fun StudySparkNavGraph() {
             )
         }
 
-        composable("${Routes.QUIZ_TAKING}/{quizId}?count={count}&time={time}&randomize={randomize}") { backStackEntry ->
+        composable(
+            route = "${Routes.QUIZ_TAKING}/{quizId}?count={count}&time={time}&randomize={randomize}",
+            arguments = listOf(
+                navArgument("quizId") { type = NavType.StringType },
+                navArgument("count") { type = NavType.IntType },
+                navArgument("time") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("randomize") { type = NavType.BoolType }
+            )
+        ) { backStackEntry ->
             val quizId = backStackEntry.arguments?.getString("quizId") ?: ""
-            PlaceholderScreen(
-                title = "Quiz Taking",
-                description = "Quiz $quizId is ready to start! Coming in the next step.",
-                onBack = { navController.popBackStack() }
+            val count = backStackEntry.arguments?.getInt("count") ?: 1
+            val timeStr = backStackEntry.arguments?.getString("time")
+            val time = if (timeStr == "null" || timeStr == null) null else timeStr.toIntOrNull()
+            val randomize = backStackEntry.arguments?.getBoolean("randomize") ?: false
+
+            QuizTakingScreen(
+                quizId = quizId,
+                questionCount = count,
+                timeLimitSeconds = time,
+                randomize = randomize,
+                onNavigateToResults = { resultState ->
+                    lastQuizResult = resultState
+                    navController.navigate(Routes.RESULTS) {
+                        popUpTo(Routes.HOME)
+                    }
+                },
+                onExit = { navController.popBackStack() }
             )
         }
 
         composable(Routes.RESULTS) {
-            PlaceholderScreen(
-                title = "Results",
-                description = "Your score and answer review. Coming soon.",
-                onBack = { navController.popBackStack() }
-            )
+            val result = lastQuizResult
+            if (result != null) {
+                ResultsScreen(
+                    result = result,
+                    onDone = {
+                        lastQuizResult = null
+                        navController.popBackStack(Routes.HOME, inclusive = false)
+                    }
+                )
+            } else {
+                PlaceholderScreen(
+                    title = "Error",
+                    description = "No result found.",
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
 
         composable(Routes.SETTINGS) {
