@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.UUID
 
 data class PdfImportUiState(
@@ -42,12 +43,26 @@ class PdfImportViewModel(
         viewModelScope.launch {
             try {
                 val text = withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        PDDocument.load(inputStream).use { document ->
+                    // Create a temporary file to safely copy the PDF into
+                    val tempFile = File.createTempFile("import_", ".pdf", context.cacheDir)
+                    
+                    try {
+                        // 1. Copy the URI data to our temp file
+                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                            tempFile.outputStream().use { outputStream ->
+                                inputStream.copyTo(outputStream)
+                            }
+                        } ?: throw Exception("Could not open file stream")
+
+                        // 2. Read the temp file with PDFBox
+                        PDDocument.load(tempFile).use { document ->
                             val stripper = PDFTextStripper()
                             stripper.getText(document)
                         }
-                    } ?: throw Exception("Could not open file")
+                    } finally {
+                        // 3. Always delete the temp file to save space
+                        tempFile.delete()
+                    }
                 }
 
                 if (text.isBlank()) {
