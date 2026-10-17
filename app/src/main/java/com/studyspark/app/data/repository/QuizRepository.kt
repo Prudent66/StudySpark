@@ -8,14 +8,12 @@ import com.studyspark.app.domain.model.Quiz
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/**
- * Repository that bridges the domain layer (Quiz, Question) and data layer (entities).
- */
 class QuizRepository(private val quizDao: QuizDao) {
 
+    // UPDATED: Now maps the full QuizWithQuestions relation
     fun observeAllQuizzes(): Flow<List<Quiz>> =
-        quizDao.observeAllQuizzes().map { entities ->
-            entities.map { entity -> entity.toDomain(emptyList()) }
+        quizDao.observeAllQuizzesWithQuestions().map { list ->
+            list.map { it.quiz.toDomain(it.questions.map { q -> q.toDomain() }) }
         }
 
     suspend fun getQuiz(quizId: String): Quiz? {

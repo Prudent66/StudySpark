@@ -10,8 +10,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface QuizDao {
 
+    // NEW: Returns quizzes with their questions attached
+    @Transaction
     @Query("SELECT * FROM quizzes ORDER BY updatedAt DESC")
-    fun observeAllQuizzes(): Flow<List<QuizEntity>>
+    fun observeAllQuizzesWithQuestions(): Flow<List<QuizWithQuestions>>
 
     @Query("SELECT * FROM quizzes WHERE id = :quizId LIMIT 1")
     suspend fun getQuiz(quizId: String): QuizEntity?
@@ -31,10 +33,6 @@ interface QuizDao {
     @Query("DELETE FROM quizzes WHERE id = :quizId")
     suspend fun deleteQuiz(quizId: String)
 
-    /**
-     * Atomically save a quiz with all its questions.
-     * Deletes old questions first to handle removals cleanly.
-     */
     @Transaction
     suspend fun saveQuizWithQuestions(quiz: QuizEntity, questions: List<QuestionEntity>) {
         upsertQuiz(quiz)
