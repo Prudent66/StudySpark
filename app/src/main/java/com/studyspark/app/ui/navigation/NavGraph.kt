@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.studyspark.app.ui.HomeScreen
 import com.studyspark.app.ui.editor.ManualEditorScreen
+import com.studyspark.app.ui.pdf.PdfImportScreen
 import com.studyspark.app.ui.setup.QuizSetupScreen
 import com.studyspark.app.ui.screens.PlaceholderScreen
 import com.studyspark.app.ui.taking.QuizTakingScreen
@@ -35,10 +36,14 @@ fun StudySparkNavGraph() {
         }
 
         composable(Routes.IMPORT_PDF) {
-            PlaceholderScreen(
-                title = "Import PDF",
-                description = "Upload a handout, extract text, and generate a quiz. Coming soon.",
-                onBack = { navController.popBackStack() }
+            PdfImportScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToEditor = { quizId ->
+                    // We navigate to the editor using the ID of the newly saved AI quiz
+                    navController.navigate("${Routes.MANUAL_EDITOR}?quizId=$quizId") {
+                        popUpTo(Routes.IMPORT_PDF) { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -66,7 +71,7 @@ fun StudySparkNavGraph() {
                 onEditQuiz = {
                     navController.navigate("${Routes.MANUAL_EDITOR}?quizId=$quizId")
                 },
-                onStartQuiz = { questionCount, timeLimitSeconds, randomize, blockScreenshots -> // Handle new param
+                onStartQuiz = { questionCount, timeLimitSeconds, randomize, blockScreenshots ->
                     navController.navigate(
                         "${Routes.QUIZ_TAKING}/$quizId?count=$questionCount&time=$timeLimitSeconds&randomize=$randomize&blockScreenshots=$blockScreenshots"
                     )
@@ -75,14 +80,13 @@ fun StudySparkNavGraph() {
         }
 
         composable(
-            // Add blockScreenshots to route
             route = "${Routes.QUIZ_TAKING}/{quizId}?count={count}&time={time}&randomize={randomize}&blockScreenshots={blockScreenshots}",
             arguments = listOf(
                 navArgument("quizId") { type = NavType.StringType },
                 navArgument("count") { type = NavType.IntType },
                 navArgument("time") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("randomize") { type = NavType.BoolType },
-                navArgument("blockScreenshots") { type = NavType.BoolType } // Add argument definition
+                navArgument("blockScreenshots") { type = NavType.BoolType }
             )
         ) { backStackEntry ->
             val quizId = backStackEntry.arguments?.getString("quizId") ?: ""
@@ -90,14 +94,14 @@ fun StudySparkNavGraph() {
             val timeStr = backStackEntry.arguments?.getString("time")
             val time = if (timeStr == "null" || timeStr == null) null else timeStr.toIntOrNull()
             val randomize = backStackEntry.arguments?.getBoolean("randomize") ?: false
-            val blockScreenshots = backStackEntry.arguments?.getBoolean("blockScreenshots") ?: true // Extract new arg
+            val blockScreenshots = backStackEntry.arguments?.getBoolean("blockScreenshots") ?: true
 
             QuizTakingScreen(
                 quizId = quizId,
                 questionCount = count,
                 timeLimitSeconds = time,
                 randomize = randomize,
-                blockScreenshots = blockScreenshots, // Pass to screen
+                blockScreenshots = blockScreenshots,
                 onNavigateToResults = { resultState ->
                     lastQuizResult = resultState
                     navController.navigate(Routes.RESULTS) {
