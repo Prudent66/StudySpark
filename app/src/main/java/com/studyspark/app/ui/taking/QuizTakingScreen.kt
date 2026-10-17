@@ -1,5 +1,6 @@
 package com.studyspark.app.ui.taking
 
+import android.content.Context
 import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -66,7 +67,7 @@ fun QuizTakingScreen(
     questionCount: Int,
     timeLimitSeconds: Int?,
     randomize: Boolean,
-    blockScreenshots: Boolean, // NEW parameter
+    blockScreenshots: Boolean,
     onNavigateToResults: (QuizResult) -> Unit,
     onExit: () -> Unit
 ) {
@@ -74,7 +75,6 @@ fun QuizTakingScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val view = LocalView.current
 
-    // NEW: Apply FLAG_SECURE dynamically based on the toggle
     DisposableEffect(blockScreenshots) {
         val window = (view.context as? android.app.Activity)?.window
         if (blockScreenshots) {
@@ -82,9 +82,7 @@ fun QuizTakingScreen(
         } else {
             window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
-        
         onDispose {
-            // Always clear the flag when leaving the screen
             window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
@@ -94,7 +92,8 @@ fun QuizTakingScreen(
             initializer {
                 val db = StudySparkDatabase.getDatabase(context)
                 val repo = QuizRepository(db.quizDao())
-                QuizTakingViewModel(repo, quizId, questionCount, timeLimitSeconds, randomize)
+                val prefs = context.getSharedPreferences("studyspark_anticheat", Context.MODE_PRIVATE)
+                QuizTakingViewModel(repo, quizId, questionCount, timeLimitSeconds, randomize, prefs)
             }
         }
     )
@@ -104,6 +103,10 @@ fun QuizTakingScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP && !state.isSubmitted) {
                 viewModel.onAppBackgrounded()
+            }
+            // NEW: Ensure navigation happens when returning to the app if already submitted
+            if (event == Lifecycle.Event.ON_START && state.isSubmitted) {
+                state.result?.let { onNavigateToResults(it) }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

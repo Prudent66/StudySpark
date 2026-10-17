@@ -1,5 +1,6 @@
 package com.studyspark.app.ui.taking
 
+import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.studyspark.app.data.repository.QuizRepository
@@ -27,7 +28,7 @@ data class QuizTakingUiState(
     val result: QuizResult? = null,
     val errorMessage: String? = null,
     val hasLeftApp: Boolean = false,
-    val showWarningDialog: Boolean = true // NEW: Starts as true to show warning first
+    val showWarningDialog: Boolean = true
 ) {
     val currentQuestion: Question?
         get() = activeQuestions.getOrNull(currentIndex)
@@ -45,19 +46,51 @@ class QuizTakingViewModel(
     private val quizId: String,
     private val requestedQuestionCount: Int,
     private val timeLimitSeconds: Int?,
-    private val randomize: Boolean
+    private val randomize: Boolean,
+    private val prefs: SharedPreferences
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(QuizTakingUiState(timeLeftSeconds = timeLimitSeconds))
     val uiState: StateFlow<QuizTakingUiState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
+    private val abandonedKey = "abandoned_$quizId"
 
     init {
-        loadAndSetupQuiz()
+        if (prefs.getBoolean(abandonedKey, false)) {
+            // The user abandoned this quiz previously. Load it and force submit.
+            forceSubmitAbandonedQuiz()
+        } else {
+            loadAndSetupQuiz()
+        }
+    }
+
+    private fun forceSubmitAbandonedQuiz() {
+        viewModelScope.launch {
+            val fullQuiz = repository.getQuiz(quizId)
+            if (fullQuiz != null) {
+                var workingQuestions = if (randomize) fullQuiz.questions.shuffled() else fullQuiz.questions
+                if (requestedQuestionCount < workingQuestions.size) {
+                    workingQuestions = workingQuestions.take(requestedQuestionCount)
+                }
+                
+                // Calculate score with empty answers (since they left)
+                val result = QuizScorer.score(quizId, workingQuestions, emptyMap())
+                
+                _uiState.value = _uiState.value.copy(
+                    quiz = fullQuiz,
+                    activeQuestions = workingQuestions,
+                    isSubmitted = true,
+                    result = result
+                )
+            }
+        }
     }
 
     private fun loadAndSetupQuiz() {
+        // Clear the abandoned flag because this is a fresh start
+        prefs.edit().putBoolean(abandonedKey, false).apply()
+        
         viewModelScope.launch {
             val fullQuiz = repository.getQuiz(quizId)
             if (fullQuiz == null) {
@@ -66,7 +99,6 @@ class QuizTakingViewModel(
             }
 
             var workingQuestions = if (randomize) fullQuiz.questions.shuffled() else fullQuiz.questions
-
             if (requestedQuestionCount < workingQuestions.size) {
                 workingQuestions = workingQuestions.take(requestedQuestionCount)
             }
@@ -88,7 +120,6 @@ class QuizTakingViewModel(
         timerJob = viewModelScope.launch {
             while (isActive) {
                 delay(1000L)
-                // Pause timer if warning dialog is showing
                 if (_uiState.value.showWarningDialog) continue 
                 
                 val current = _uiState.value.timeLeftSeconds ?: break
@@ -143,8 +174,9 @@ class QuizTakingViewModel(
     }
 
     fun onAppBackgrounded() {
-        // Only auto-submit if they haven't submitted AND they have already acknowledged the warning
         if (!_uiState.value.isSubmitted && !_uiState.value.showWarningDialog) {
+            // Save the abandoned flag so it survives process death
+            prefs.edit().putBoolean(abandonedKey, true).apply()
             _uiState.value = _uiState.value.copy(hasLeftApp = true)
             submitQuiz() 
         }
@@ -153,14 +185,9 @@ class QuizTakingViewModel(
     fun submitQuiz() {
         val state = _uiState.value
         val quiz = state.quiz ?: return
-        
         timerJob?.cancel()
 
-        val result = QuizScorer.score(
-            quizId = quiz.id,
-            questions = state.activeQuestions,
-            answers = state.answers
-        )
+        val result = QuizScorer.score(quizId, state.activeQuestions, state.answers)
 
         _uiState.value = state.copy(
             isSubmitted = true,
