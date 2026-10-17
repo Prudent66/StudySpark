@@ -6,6 +6,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.studyspark.app.ui.HomeScreen
 import com.studyspark.app.ui.editor.ManualEditorScreen
+import com.studyspark.app.ui.setup.QuizSetupScreen
 import com.studyspark.app.ui.screens.PlaceholderScreen
 
 @Composable
@@ -43,17 +44,23 @@ fun StudySparkNavGraph() {
 
         composable("${Routes.QUIZ_SETUP}/{quizId}") { backStackEntry ->
             val quizId = backStackEntry.arguments?.getString("quizId") ?: ""
-            PlaceholderScreen(
-                title = "Quiz Setup",
-                description = "Configure your quiz (id: $quizId). Coming in Phase 3B.",
-                onBack = { navController.popBackStack() }
+            QuizSetupScreen(
+                quizId = quizId,
+                onBack = { navController.popBackStack() },
+                onStartQuiz = { questionCount, timeLimitSeconds, randomize ->
+                    // Navigate to Quiz Taking (Placeholder for now, built in next step)
+                    navController.navigate(
+                        "${Routes.QUIZ_TAKING}/$quizId?count=$questionCount&time=$timeLimitSeconds&randomize=$randomize"
+                    )
+                }
             )
         }
 
-        composable(Routes.QUIZ_TAKING) {
+        composable("${Routes.QUIZ_TAKING}/{quizId}?count={count}&time={time}&randomize={randomize}") { backStackEntry ->
+            val quizId = backStackEntry.arguments?.getString("quizId") ?: ""
             PlaceholderScreen(
                 title = "Quiz Taking",
-                description = "Answer questions with a timer and navigator.",
+                description = "Quiz $quizId is ready to start! Coming in the next step.",
                 onBack = { navController.popBackStack() }
             )
         }
@@ -61,7 +68,7 @@ fun StudySparkNavGraph() {
         composable(Routes.RESULTS) {
             PlaceholderScreen(
                 title = "Results",
-                description = "Your score and answer review. Coming in Phase 3.",
+                description = "Your score and answer review. Coming soon.",
                 onBack = { navController.popBackStack() }
             )
         }
