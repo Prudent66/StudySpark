@@ -1,5 +1,6 @@
 package com.studyspark.app.ui.pdf
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,8 +18,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,11 +32,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -42,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -70,9 +77,60 @@ fun PdfImportScreen(
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if (uri != null) {
-            viewModel.extractTextFromPdf(context, uri, "Handout.pdf")
+        if (uri != null) viewModel.extractTextFromPdf(context, uri, "Handout.pdf")
+    }
+
+    // Automatically share the PDF when it's generated
+    LaunchedEffect(state.generatedPdfFile) {
+        state.generatedPdfFile?.let { file ->
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, "Share Exam PDF"))
         }
+    }
+
+    if (state.showHeaderDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.showHeaderDialog(false) },
+            title = { Text("Customize PDF Header") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    OutlinedTextField(
+                        value = state.schoolName, onValueChange = { viewModel.updateSchoolName(it) },
+                        label = { Text("School/Institution Name") }, singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.examTitle, onValueChange = { viewModel.updateExamTitle(it) },
+                        label = { Text("Exam Title") }, singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.courseCode, onValueChange = { viewModel.updateCourseCode(it) },
+                        label = { Text("Course / Subject") }, singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.instructions, onValueChange = { viewModel.updateInstructions(it) },
+                        label = { Text("Instructions") }, minLines = 2
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.generatePdf(context) }) {
+                    Text("Generate PDF")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.showHeaderDialog(false) }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -112,7 +170,7 @@ fun PdfImportScreen(
                     Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text(
-                        text = "Questions Generated!",
+                        text = "${state.generatedQuestions.size} Questions Generated!",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -145,12 +203,32 @@ fun PdfImportScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Buttons
                 Button(
                     onClick = { viewModel.saveAndContinueToEditor(onNavigateToEditor) },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text("Continue to Editor")
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = { viewModel.showHeaderDialog(true) },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    if (state.isGeneratingPdf) {
+                        CircularProgressIndicator(modifier = Modifier.height(20.dp), color = MaterialTheme.colorScheme.onSecondary, strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Filled.Download, contentDescription = null)
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Text("Download Exam PDF")
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -188,9 +266,7 @@ fun PdfImportScreen(
                 ) {
                     Text(
                         text = state.extractedText,
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .verticalScroll(rememberScrollState()),
+                        modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -209,12 +285,12 @@ fun PdfImportScreen(
                             FilterChip(
                                 selected = state.questionType == "Objectives",
                                 onClick = { viewModel.updateQuestionType("Objectives") },
-                                label = { Text("Objectives (MCQ)") }
+                                label = { Text("Objectives (Max 100)") }
                             )
                             FilterChip(
                                 selected = state.questionType == "Essay",
                                 onClick = { viewModel.updateQuestionType("Essay") },
-                                label = { Text("Essay") }
+                                label = { Text("Essay (Max 10)") }
                             )
                         }
 
@@ -224,8 +300,8 @@ fun PdfImportScreen(
                         Slider(
                             value = state.numberOfQuestions.toFloat(),
                             onValueChange = { viewModel.updateNumberOfQuestions(it.roundToInt()) },
-                            valueRange = 1f..20f,
-                            steps = 18
+                            valueRange = 1f..state.maxQuestionsAllowed.toFloat(),
+                            steps = (state.maxQuestionsAllowed - 2).coerceAtLeast(0)
                         )
                     }
                 }

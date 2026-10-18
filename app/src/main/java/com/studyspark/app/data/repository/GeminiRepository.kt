@@ -13,9 +13,7 @@ class GeminiRepository {
     private val apiKey = BuildConfig.GEMINI_API_KEY
 
     init {
-        if (apiKey.isBlank()) {
-            throw IllegalStateException("GEMINI_API_KEY is missing. Check GitHub Secrets.")
-        }
+        if (apiKey.isBlank()) throw IllegalStateException("GEMINI_API_KEY is missing.")
     }
 
     private val model = GenerativeModel(
@@ -25,7 +23,7 @@ class GeminiRepository {
             temperature = 0.2f
             topK = 32
             topP = 1f
-            maxOutputTokens = 4096
+            maxOutputTokens = 8192 // UPDATED: Max tokens for huge lists
             responseMimeType = "application/json"
         }
     )
@@ -33,7 +31,7 @@ class GeminiRepository {
     suspend fun generateQuestionsFromText(
         extractedText: String,
         numberOfQuestions: Int,
-        questionType: String // "Objectives" or "Essay"
+        questionType: String
     ): List<DraftQuestion> = withContext(Dispatchers.IO) {
         
         val prompt = if (questionType == "Essay") {
@@ -44,7 +42,7 @@ class GeminiRepository {
             - "question": The essay question text (String)
             - "options": An array of exactly 4 strings. Use "See Explanation" for the first element, and "N/A" for the other three.
             - "correctIndex": Use 0
-            - "explanation": The model answer or key points expected in the student's response (String)
+            - "explanation": The model answer or key points (String)
             
             Text:
             $extractedText
@@ -64,10 +62,7 @@ class GeminiRepository {
             val response = model.generateContent(prompt)
             val rawResponse = response.text ?: throw Exception("Empty response")
 
-            val jsonString = rawResponse
-                .replace("```json", "")
-                .replace("```", "")
-                .trim()
+            val jsonString = rawResponse.replace("```json", "").replace("```", "").trim()
 
             val questions = mutableListOf<DraftQuestion>()
             val jsonArray = JSONArray(jsonString)
