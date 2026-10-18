@@ -1,8 +1,5 @@
 package com.studyspark.app.domain.model
 
-/**
- * Represents the outcome of a completed quiz attempt.
- */
 data class QuizResult(
     val quizId: String,
     val totalQuestions: Int,
@@ -13,11 +10,9 @@ data class QuizResult(
     val questionResults: List<QuestionResult>
 )
 
-/**
- * The per-question outcome of a quiz attempt.
- */
 data class QuestionResult(
     val question: Question,
-    val selectedOptionIndex: Int?,   // Null = unanswered
+    val selectedOptionIndex: Int?,   // For MCQs
+    val textAnswer: String? = null,  // NEW: For Essays
     val isCorrect: Boolean
 )

@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -78,17 +79,11 @@ fun QuizTakingScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val view = LocalView.current
 
-    // Apply FLAG_SECURE dynamically based on the toggle
     DisposableEffect(blockScreenshots) {
         val window = (view.context as? android.app.Activity)?.window
-        if (blockScreenshots) {
-            window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        } else {
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
-        onDispose {
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
+        if (blockScreenshots) window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        else window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
     }
 
     val viewModel: QuizTakingViewModel = viewModel(
@@ -105,49 +100,27 @@ fun QuizTakingScreen(
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && !state.isSubmitted) {
-                viewModel.onAppBackgrounded()
-            }
-            if (event == Lifecycle.Event.ON_START && state.isSubmitted) {
-                state.result?.let { onNavigateToResults(it) }
-            }
+            if (event == Lifecycle.Event.ON_STOP && !state.isSubmitted) viewModel.onAppBackgrounded()
+            if (event == Lifecycle.Event.ON_START && state.isSubmitted) state.result?.let { onNavigateToResults(it) }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(state.isSubmitted) {
-        if (state.isSubmitted && state.result != null) {
-            onNavigateToResults(state.result!!)
-        }
+        if (state.isSubmitted && state.result != null) onNavigateToResults(state.result!!)
     }
 
-    // Scroll state for the question area
     val scrollState = rememberScrollState()
-    
-    // Automatically scroll to top when the question changes
-    LaunchedEffect(state.currentIndex) {
-        scrollState.scrollTo(0)
-    }
+    LaunchedEffect(state.currentIndex) { scrollState.scrollTo(0) }
 
     if (state.showWarningDialog) {
         AlertDialog(
             onDismissRequest = { },
             icon = { Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Exam Mode Enabled") },
-            text = {
-                Text(
-                    text = "To prevent cheating, leaving this app or minimizing the screen will automatically submit your quiz.\n\nPlease ensure you are ready before starting.",
-                    textAlign = TextAlign.Center
-                )
-            },
-            confirmButton = {
-                Button(onClick = viewModel::acknowledgeWarning) {
-                    Text("I Understand")
-                }
-            }
+            text = { Text("Leaving this app will automatically submit your quiz.", textAlign = TextAlign.Center) },
+            confirmButton = { Button(onClick = viewModel::acknowledgeWarning) { Text("I Understand") } }
         )
     }
 
@@ -157,22 +130,11 @@ fun QuizTakingScreen(
             title = { Text("Finish Quiz?") },
             text = {
                 val unanswered = state.activeQuestions.size - state.answeredCount
-                if (unanswered > 0) {
-                    Text("You have $unanswered unanswered questions. Are you sure you want to submit?")
-                } else {
-                    Text("You have answered all questions. Ready to submit?")
-                }
+                if (unanswered > 0) Text("You have $unanswered unanswered questions. Submit?")
+                else Text("You have answered all questions. Ready to submit?")
             },
-            confirmButton = {
-                Button(onClick = viewModel::submitQuiz) {
-                    Text("Submit")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::dismissFinishDialog) {
-                    Text("Review Answers")
-                }
-            }
+            confirmButton = { Button(onClick = viewModel::submitQuiz) { Text("Submit") } },
+            dismissButton = { TextButton(onClick = viewModel::dismissFinishDialog) { Text("Review Answers") } }
         )
     }
 
@@ -184,165 +146,89 @@ fun QuizTakingScreen(
                     state.timeLeftSeconds?.let { seconds ->
                         val minutes = seconds / 60
                         val secs = seconds % 60
-                        val timeStr = String.format("%02d:%02d", minutes, secs)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(end = 16.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Timer,
-                                contentDescription = "Timer",
-                                tint = if (seconds < 60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 16.dp)) {
+                            Icon(Icons.Filled.Timer, contentDescription = "Timer", tint = if (seconds < 60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = timeStr,
-                                fontWeight = FontWeight.Bold,
-                                color = if (seconds < 60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                            )
+                            Text(String.format("%02d:%02d", minutes, secs), fontWeight = FontWeight.Bold, color = if (seconds < 60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                         }
                     }
-                    TextButton(onClick = viewModel::requestFinish) {
-                        Text("Finish", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                    }
+                    TextButton(onClick = viewModel::requestFinish) { Text("Finish", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
                 }
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-        ) {
-            // --- FIXED TOP SECTION ---
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             LinearProgressIndicator(
                 progress = { state.progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
+                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
                 color = Color(0xFF4CAF50),
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "${state.answeredCount} of ${state.activeQuestions.size} answered",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text("${state.answeredCount} of ${state.activeQuestions.size} answered", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 itemsIndexed(state.activeQuestions) { index, question ->
-                    val isAnswered = state.answers[question.id] != null
+                    val isAnswered = if (question.questionType == "Essay") !state.essayAnswers[question.id].isNullOrBlank() else state.answers[question.id] != null
                     val isCurrent = state.currentIndex == index
                     val bgColor = when {
                         isCurrent -> MaterialTheme.colorScheme.primary
                         isAnswered -> Color(0xFF4CAF50)
                         else -> MaterialTheme.colorScheme.surfaceVariant
                     }
-                    val textColor = if (isCurrent || isAnswered) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-
                     Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(bgColor)
-                            .selectable(
-                                selected = isCurrent,
-                                onClick = { viewModel.goToQuestion(index) }
-                            ),
+                        modifier = Modifier.size(36.dp).clip(CircleShape).background(bgColor).selectable(selected = isCurrent, onClick = { viewModel.goToQuestion(index) }),
                         contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "${index + 1}", color = textColor, fontWeight = FontWeight.Bold)
-                    }
+                    ) { Text(text = "${index + 1}", color = if (isCurrent || isAnswered) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold) }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- SCROLLABLE MIDDLE SECTION (Question & Options) ---
-            Column(
-                modifier = Modifier
-                    .weight(1f) // Takes up remaining space
-                    .verticalScroll(scrollState) // Makes it scrollable
-            ) {
+            Column(modifier = Modifier.weight(1f).verticalScroll(scrollState)) {
                 state.currentQuestion?.let { question ->
-                    Text(
-                        text = "Question ${state.currentIndex + 1}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Question ${state.currentIndex + 1}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = question.text,
-                        style = MaterialTheme.typography.headlineSmall
-                    )
+                    Text(text = question.text, style = MaterialTheme.typography.headlineSmall)
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    val labels = listOf("A", "B", "C", "D")
-                    question.options.forEachIndexed { index, option ->
-                        val isSelected = state.answers[question.id] == index
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .selectable(
-                                    selected = isSelected,
-                                    onClick = { viewModel.selectAnswer(question.id, index) }
-                                ),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surface
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                    if (question.questionType == "Essay") {
+                        OutlinedTextField(
+                            value = state.essayAnswers[question.id] ?: "",
+                            onValueChange = { viewModel.selectEssayAnswer(question.id, it) },
+                            label = { Text("Your Answer") },
+                            placeholder = { Text("Type your answer here...") },
+                            modifier = Modifier.fillMaxWidth().height(250.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    } else {
+                        val labels = listOf("A", "B", "C", "D")
+                        question.options.forEachIndexed { index, option ->
+                            val isSelected = state.answers[question.id] == index
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).selectable(selected = isSelected, onClick = { viewModel.selectAnswer(question.id, index) }),
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
+                                shape = RoundedCornerShape(12.dp),
+                                border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
                             ) {
-                                RadioButton(
-                                    selected = isSelected,
-                                    onClick = { viewModel.selectAnswer(question.id, index) }
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "${labels[index]}. $option",
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
+                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = isSelected, onClick = { viewModel.selectAnswer(question.id, index) })
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(text = "${labels[index]}. $option", style = MaterialTheme.typography.bodyLarge)
+                                }
                             }
                         }
                     }
-                    // Add padding at the bottom of the scroll area so the last option isn't covered
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
 
-            // --- FIXED BOTTOM SECTION (Navigation Buttons) ---
             Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                OutlinedButton(
-                    onClick = viewModel::previousQuestion,
-                    enabled = state.currentIndex > 0
-                ) {
-                    Text("Previous")
-                }
-                Button(
-                    onClick = viewModel::nextQuestion,
-                    enabled = state.currentIndex < state.activeQuestions.size - 1
-                ) {
-                    Text("Next")
-                }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                OutlinedButton(onClick = viewModel::previousQuestion, enabled = state.currentIndex > 0) { Text("Previous") }
+                Button(onClick = viewModel::nextQuestion, enabled = state.currentIndex < state.activeQuestions.size - 1) { Text("Next") }
             }
         }
     }

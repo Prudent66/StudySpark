@@ -5,9 +5,6 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/**
- * Room entity representing a question belonging to a quiz.
- */
 @Entity(
     tableName = "questions",
     foreignKeys = [
@@ -30,5 +27,6 @@ data class QuestionEntity(
     val optionD: String,
     val correctOptionIndex: Int,
     val explanation: String?,
-    val orderIndex: Int
+    val orderIndex: Int,
+    val questionType: String = "Objectives" // NEW
 )

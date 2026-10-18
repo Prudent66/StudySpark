@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [QuizEntity::class, QuestionEntity::class],
-    version = 1,
+    version = 2, // NEW VERSION
     exportSchema = false
 )
 abstract class StudySparkDatabase : RoomDatabase() {
@@ -25,7 +25,7 @@ abstract class StudySparkDatabase : RoomDatabase() {
                     StudySparkDatabase::class.java,
                     "studyspark_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration() // This will wipe the old DB to apply changes
                     .build()
                 INSTANCE = instance
                 instance

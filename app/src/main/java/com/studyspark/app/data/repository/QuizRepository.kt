@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.map
 
 class QuizRepository(private val quizDao: QuizDao) {
 
-    // UPDATED: Now maps the full QuizWithQuestions relation
     fun observeAllQuizzes(): Flow<List<Quiz>> =
         quizDao.observeAllQuizzesWithQuestions().map { list ->
             list.map { it.quiz.toDomain(it.questions.map { q -> q.toDomain() }) }
@@ -35,8 +34,6 @@ class QuizRepository(private val quizDao: QuizDao) {
     }
 }
 
-// ---------- Mappers ----------
-
 private fun QuizEntity.toDomain(questions: List<Question>): Quiz = Quiz(
     id = id,
     title = title,
@@ -48,9 +45,10 @@ private fun QuizEntity.toDomain(questions: List<Question>): Quiz = Quiz(
 private fun QuestionEntity.toDomain(): Question = Question(
     id = id,
     text = text,
-    options = listOf(optionA, optionB, optionC, optionD),
+    options = if (questionType == "Essay") emptyList() else listOf(optionA, optionB, optionC, optionD),
     correctOptionIndex = correctOptionIndex,
-    explanation = explanation
+    explanation = explanation,
+    questionType = questionType
 )
 
 private fun Quiz.toEntity(): QuizEntity {
@@ -69,11 +67,12 @@ private fun Question.toEntity(quizId: String, orderIndex: Int): QuestionEntity =
     id = id,
     quizId = quizId,
     text = text,
-    optionA = options[0],
-    optionB = options[1],
-    optionC = options[2],
-    optionD = options[3],
+    optionA = options.getOrNull(0) ?: "",
+    optionB = options.getOrNull(1) ?: "",
+    optionC = options.getOrNull(2) ?: "",
+    optionD = options.getOrNull(3) ?: "",
     correctOptionIndex = correctOptionIndex,
     explanation = explanation,
-    orderIndex = orderIndex
+    orderIndex = orderIndex,
+    questionType = questionType
 )

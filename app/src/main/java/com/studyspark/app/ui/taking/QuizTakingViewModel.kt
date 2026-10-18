@@ -21,6 +21,7 @@ data class QuizTakingUiState(
     val activeQuestions: List<Question> = emptyList(),
     val currentIndex: Int = 0,
     val answers: Map<String, Int?> = emptyMap(),
+    val essayAnswers: Map<String, String> = emptyMap(), // NEW
     val timeLeftSeconds: Int? = null,
     val isTimerRunning: Boolean = false,
     val showFinishDialog: Boolean = false,
@@ -34,7 +35,10 @@ data class QuizTakingUiState(
         get() = activeQuestions.getOrNull(currentIndex)
         
     val answeredCount: Int
-        get() = answers.count { it.value != null }
+        get() = activeQuestions.count { 
+            if (it.questionType == "Essay") !essayAnswers[it.id].isNullOrBlank()
+            else answers[it.id] != null
+        }
         
     val progress: Float
         get() = if (activeQuestions.isEmpty()) 0f
@@ -58,7 +62,6 @@ class QuizTakingViewModel(
 
     init {
         if (prefs.getBoolean(abandonedKey, false)) {
-            // The user abandoned this quiz previously. Load it and force submit.
             forceSubmitAbandonedQuiz()
         } else {
             loadAndSetupQuiz()
@@ -73,10 +76,7 @@ class QuizTakingViewModel(
                 if (requestedQuestionCount < workingQuestions.size) {
                     workingQuestions = workingQuestions.take(requestedQuestionCount)
                 }
-                
-                // Calculate score with empty answers (since they left)
-                val result = QuizScorer.score(quizId, workingQuestions, emptyMap())
-                
+                val result = QuizScorer.score(quizId, workingQuestions, emptyMap(), emptyMap())
                 _uiState.value = _uiState.value.copy(
                     quiz = fullQuiz,
                     activeQuestions = workingQuestions,
@@ -88,30 +88,23 @@ class QuizTakingViewModel(
     }
 
     private fun loadAndSetupQuiz() {
-        // Clear the abandoned flag because this is a fresh start
         prefs.edit().putBoolean(abandonedKey, false).apply()
-        
         viewModelScope.launch {
             val fullQuiz = repository.getQuiz(quizId)
             if (fullQuiz == null) {
                 _uiState.value = _uiState.value.copy(errorMessage = "Quiz not found.")
                 return@launch
             }
-
             var workingQuestions = if (randomize) fullQuiz.questions.shuffled() else fullQuiz.questions
             if (requestedQuestionCount < workingQuestions.size) {
                 workingQuestions = workingQuestions.take(requestedQuestionCount)
             }
-
             _uiState.value = _uiState.value.copy(
                 quiz = fullQuiz,
                 activeQuestions = workingQuestions,
                 isTimerRunning = timeLimitSeconds != null
             )
-
-            if (timeLimitSeconds != null) {
-                startTimer()
-            }
+            if (timeLimitSeconds != null) startTimer()
         }
     }
 
@@ -121,7 +114,6 @@ class QuizTakingViewModel(
             while (isActive) {
                 delay(1000L)
                 if (_uiState.value.showWarningDialog) continue 
-                
                 val current = _uiState.value.timeLeftSeconds ?: break
                 if (current <= 1) {
                     _uiState.value = _uiState.value.copy(timeLeftSeconds = 0, isTimerRunning = false)
@@ -134,9 +126,7 @@ class QuizTakingViewModel(
         }
     }
 
-    fun acknowledgeWarning() {
-        _uiState.value = _uiState.value.copy(showWarningDialog = false)
-    }
+    fun acknowledgeWarning() { _uiState.value = _uiState.value.copy(showWarningDialog = false) }
 
     fun selectAnswer(questionId: String, optionIndex: Int) {
         if (_uiState.value.isSubmitted) return
@@ -145,37 +135,32 @@ class QuizTakingViewModel(
         _uiState.value = _uiState.value.copy(answers = updatedAnswers)
     }
 
+    fun selectEssayAnswer(questionId: String, text: String) {
+        if (_uiState.value.isSubmitted) return
+        val updatedAnswers = _uiState.value.essayAnswers.toMutableMap()
+        updatedAnswers[questionId] = text
+        _uiState.value = _uiState.value.copy(essayAnswers = updatedAnswers)
+    }
+
     fun nextQuestion() {
         val state = _uiState.value
-        if (state.currentIndex < state.activeQuestions.size - 1) {
-            _uiState.value = state.copy(currentIndex = state.currentIndex + 1)
-        }
+        if (state.currentIndex < state.activeQuestions.size - 1) _uiState.value = state.copy(currentIndex = state.currentIndex + 1)
     }
 
     fun previousQuestion() {
         val state = _uiState.value
-        if (state.currentIndex > 0) {
-            _uiState.value = state.copy(currentIndex = state.currentIndex - 1)
-        }
+        if (state.currentIndex > 0) _uiState.value = state.copy(currentIndex = state.currentIndex - 1)
     }
 
     fun goToQuestion(index: Int) {
-        if (index in _uiState.value.activeQuestions.indices) {
-            _uiState.value = _uiState.value.copy(currentIndex = index)
-        }
+        if (index in _uiState.value.activeQuestions.indices) _uiState.value = _uiState.value.copy(currentIndex = index)
     }
 
-    fun requestFinish() {
-        _uiState.value = _uiState.value.copy(showFinishDialog = true)
-    }
-
-    fun dismissFinishDialog() {
-        _uiState.value = _uiState.value.copy(showFinishDialog = false)
-    }
+    fun requestFinish() { _uiState.value = _uiState.value.copy(showFinishDialog = true) }
+    fun dismissFinishDialog() { _uiState.value = _uiState.value.copy(showFinishDialog = false) }
 
     fun onAppBackgrounded() {
         if (!_uiState.value.isSubmitted && !_uiState.value.showWarningDialog) {
-            // Save the abandoned flag so it survives process death
             prefs.edit().putBoolean(abandonedKey, true).apply()
             _uiState.value = _uiState.value.copy(hasLeftApp = true)
             submitQuiz() 
@@ -187,7 +172,12 @@ class QuizTakingViewModel(
         val quiz = state.quiz ?: return
         timerJob?.cancel()
 
-        val result = QuizScorer.score(quizId, state.activeQuestions, state.answers)
+        val result = QuizScorer.score(
+            quizId = quizId, 
+            questions = state.activeQuestions, 
+            answers = state.answers,
+            textAnswers = state.essayAnswers // Pass essays
+        )
 
         _uiState.value = state.copy(
             isSubmitted = true,

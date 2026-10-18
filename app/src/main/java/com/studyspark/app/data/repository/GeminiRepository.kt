@@ -23,7 +23,7 @@ class GeminiRepository {
             temperature = 0.2f
             topK = 32
             topP = 1f
-            maxOutputTokens = 8192 // UPDATED: Max tokens for huge lists
+            maxOutputTokens = 8192 
             responseMimeType = "application/json"
         }
     )
@@ -40,7 +40,7 @@ class GeminiRepository {
             Return the response ONLY as a JSON array of objects. Do not include markdown formatting.
             Each object must have these exact keys:
             - "question": The essay question text (String)
-            - "options": An array of exactly 4 strings. Use "See Explanation" for the first element, and "N/A" for the other three.
+            - "options": An empty array [] (since it's an essay)
             - "correctIndex": Use 0
             - "explanation": The model answer or key points (String)
             
@@ -61,22 +61,26 @@ class GeminiRepository {
         try {
             val response = model.generateContent(prompt)
             val rawResponse = response.text ?: throw Exception("Empty response")
-
             val jsonString = rawResponse.replace("```json", "").replace("```", "").trim()
 
             val questions = mutableListOf<DraftQuestion>()
             val jsonArray = JSONArray(jsonString)
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-                val optionsArray = obj.getJSONArray("options")
-                val options = List(4) { optionsArray.getString(it) }
+                
+                val optionsList = mutableListOf<String>()
+                if (questionType != "Essay") {
+                    val optionsArray = obj.getJSONArray("options")
+                    for (j in 0 until 4) optionsList.add(optionsArray.getString(j))
+                }
                 
                 questions.add(
                     DraftQuestion(
                         text = obj.getString("question"),
-                        options = options,
-                        correctOptionIndex = obj.getInt("correctIndex"),
-                        explanation = obj.optString("explanation", "")
+                        options = if (questionType == "Essay") listOf("", "", "", "") else optionsList,
+                        correctOptionIndex = obj.optInt("correctIndex", 0),
+                        explanation = obj.optString("explanation", ""),
+                        questionType = questionType
                     )
                 )
             }

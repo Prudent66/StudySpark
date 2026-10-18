@@ -126,27 +126,41 @@ fun ResultsScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    Text(
-                        text = "Your Answer: ${qr.selectedOptionIndex?.let { listOf("A","B","C","D")[it] + ". " + qr.question.options[it] } ?: "Not answered"}",
-                        color = if (qr.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    
-                    if (!qr.isCorrect) {
+                    if (qr.question.questionType == "Essay") {
                         Text(
-                            text = "Correct Answer: ${listOf("A","B","C","D")[qr.question.correctOptionIndex]}. ${qr.question.options[qr.question.correctOptionIndex]}",
+                            text = "Your Answer: ${qr.textAnswer ?: "Not answered"}",
+                            color = if (qr.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Model Answer: ${qr.question.explanation ?: "N/A"}",
                             color = Color(0xFF4CAF50),
                             style = MaterialTheme.typography.bodyMedium
                         )
-                    }
-
-                    qr.question.explanation?.let { explanation ->
-                        Spacer(modifier = Modifier.height(8.dp))
+                    } else {
                         Text(
-                            text = "Explanation: $explanation",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Your Answer: ${qr.selectedOptionIndex?.let { listOf("A","B","C","D")[it] + ". " + qr.question.options[it] } ?: "Not answered"}",
+                            color = if (qr.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336),
+                            style = MaterialTheme.typography.bodyMedium
                         )
+                        
+                        if (!qr.isCorrect) {
+                            Text(
+                                text = "Correct Answer: ${listOf("A","B","C","D")[qr.question.correctOptionIndex]}. ${qr.question.options[qr.question.correctOptionIndex]}",
+                                color = Color(0xFF4CAF50),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
+                        qr.question.explanation?.let { explanation ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Explanation: $explanation",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
