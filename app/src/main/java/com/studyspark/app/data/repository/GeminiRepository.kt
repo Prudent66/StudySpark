@@ -19,8 +19,8 @@ class GeminiRepository {
     }
 
     private val model = GenerativeModel(
-        // UPDATED: Switched to the current Gemini 2.5 Flash model
-        modelName = "gemini-2.5-flash",
+        // UPDATED: Trying the model name recommended by the API error
+        modelName = "gemini-3.8-flash",
         apiKey = apiKey,
         generationConfig = generationConfig {
             temperature = 0.2f
