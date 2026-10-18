@@ -197,7 +197,7 @@ fun PdfImportScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // NEW: Configuration UI
+                // Configuration UI
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)

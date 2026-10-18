@@ -25,7 +25,10 @@ data class PdfImportUiState(
     val isLoadingPdf: Boolean = false,
     val isGeneratingAi: Boolean = false,
     val generatedQuestions: List<DraftQuestion> = emptyList(),
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    // Configuration state
+    val questionType: String = "Objectives", 
+    val numberOfQuestions: Int = 5
 )
 
 class PdfImportViewModel(
@@ -37,30 +40,33 @@ class PdfImportViewModel(
     
     private val geminiRepository = GeminiRepository()
 
+    fun updateQuestionType(type: String) {
+        _uiState.value = _uiState.value.copy(questionType = type)
+    }
+
+    fun updateNumberOfQuestions(count: Int) {
+        _uiState.value = _uiState.value.copy(numberOfQuestions = count)
+    }
+
     fun extractTextFromPdf(context: Context, uri: Uri, fileName: String) {
         _uiState.value = _uiState.value.copy(isLoadingPdf = true, fileName = fileName, errorMessage = null)
 
         viewModelScope.launch {
             try {
                 val text = withContext(Dispatchers.IO) {
-                    // Create a temporary file to safely copy the PDF into
                     val tempFile = File.createTempFile("import_", ".pdf", context.cacheDir)
-                    
                     try {
-                        // 1. Copy the URI data to our temp file
                         context.contentResolver.openInputStream(uri)?.use { inputStream ->
                             tempFile.outputStream().use { outputStream ->
                                 inputStream.copyTo(outputStream)
                             }
                         } ?: throw Exception("Could not open file stream")
 
-                        // 2. Read the temp file with PDFBox
                         PDDocument.load(tempFile).use { document ->
                             val stripper = PDFTextStripper()
                             stripper.getText(document)
                         }
                     } finally {
-                        // 3. Always delete the temp file to save space
                         tempFile.delete()
                     }
                 }
@@ -85,15 +91,19 @@ class PdfImportViewModel(
         }
     }
 
-    fun generateQuestionsWithAi(numberOfQuestions: Int = 5) {
-        val text = _uiState.value.extractedText
-        if (text.isBlank()) return
+    fun generateQuestionsWithAi() {
+        val state = _uiState.value
+        if (state.extractedText.isBlank()) return
 
-        _uiState.value = _uiState.value.copy(isGeneratingAi = true, errorMessage = null)
+        _uiState.value = state.copy(isGeneratingAi = true, errorMessage = null)
 
         viewModelScope.launch {
             try {
-                val questions = geminiRepository.generateQuestionsFromText(text, numberOfQuestions)
+                val questions = geminiRepository.generateQuestionsFromText(
+                    extractedText = state.extractedText,
+                    numberOfQuestions = state.numberOfQuestions,
+                    questionType = state.questionType // THIS WAS MISSING
+                )
                 _uiState.value = _uiState.value.copy(
                     isGeneratingAi = false,
                     generatedQuestions = questions

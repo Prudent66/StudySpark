@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
@@ -41,6 +43,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,6 +78,7 @@ fun QuizTakingScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val view = LocalView.current
 
+    // Apply FLAG_SECURE dynamically based on the toggle
     DisposableEffect(blockScreenshots) {
         val window = (view.context as? android.app.Activity)?.window
         if (blockScreenshots) {
@@ -104,7 +108,6 @@ fun QuizTakingScreen(
             if (event == Lifecycle.Event.ON_STOP && !state.isSubmitted) {
                 viewModel.onAppBackgrounded()
             }
-            // NEW: Ensure navigation happens when returning to the app if already submitted
             if (event == Lifecycle.Event.ON_START && state.isSubmitted) {
                 state.result?.let { onNavigateToResults(it) }
             }
@@ -119,6 +122,14 @@ fun QuizTakingScreen(
         if (state.isSubmitted && state.result != null) {
             onNavigateToResults(state.result!!)
         }
+    }
+
+    // Scroll state for the question area
+    val scrollState = rememberScrollState()
+    
+    // Automatically scroll to top when the question changes
+    LaunchedEffect(state.currentIndex) {
+        scrollState.scrollTo(0)
     }
 
     if (state.showWarningDialog) {
@@ -204,6 +215,7 @@ fun QuizTakingScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
+            // --- FIXED TOP SECTION ---
             LinearProgressIndicator(
                 progress = { state.progress },
                 modifier = Modifier
@@ -254,58 +266,67 @@ fun QuizTakingScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            state.currentQuestion?.let { question ->
-                Text(
-                    text = "Question ${state.currentIndex + 1}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = question.text,
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Spacer(modifier = Modifier.height(24.dp))
+            // --- SCROLLABLE MIDDLE SECTION (Question & Options) ---
+            Column(
+                modifier = Modifier
+                    .weight(1f) // Takes up remaining space
+                    .verticalScroll(scrollState) // Makes it scrollable
+            ) {
+                state.currentQuestion?.let { question ->
+                    Text(
+                        text = "Question ${state.currentIndex + 1}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = question.text,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                val labels = listOf("A", "B", "C", "D")
-                question.options.forEachIndexed { index, option ->
-                    val isSelected = state.answers[question.id] == index
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .selectable(
-                                selected = isSelected,
-                                onClick = { viewModel.selectAnswer(question.id, index) }
+                    val labels = listOf("A", "B", "C", "D")
+                    question.options.forEachIndexed { index, option ->
+                        val isSelected = state.answers[question.id] == index
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .selectable(
+                                    selected = isSelected,
+                                    onClick = { viewModel.selectAnswer(question.id, index) }
+                                ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surface
                             ),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surface
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            shape = RoundedCornerShape(12.dp),
+                            border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
                         ) {
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = { viewModel.selectAnswer(question.id, index) }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "${labels[index]}. $option",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = { viewModel.selectAnswer(question.id, index) }
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${labels[index]}. $option",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
                         }
                     }
+                    // Add padding at the bottom of the scroll area so the last option isn't covered
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
+            // --- FIXED BOTTOM SECTION (Navigation Buttons) ---
+            Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
