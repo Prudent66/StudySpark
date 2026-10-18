@@ -24,11 +24,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -45,6 +47,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.studyspark.app.data.local.StudySparkDatabase
 import com.studyspark.app.data.repository.QuizRepository
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +104,7 @@ fun PdfImportScreen(
             }
 
             if (state.generatedQuestions.isNotEmpty()) {
+                // --- Generated Questions Preview ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -162,6 +166,7 @@ fun PdfImportScreen(
                 }
 
             } else if (state.extractedText.isNotEmpty()) {
+                // --- Extracted Text & AI Configuration ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -175,7 +180,7 @@ fun PdfImportScreen(
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Card(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -188,6 +193,41 @@ fun PdfImportScreen(
                             .verticalScroll(rememberScrollState()),
                         style = MaterialTheme.typography.bodySmall
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // NEW: Configuration UI
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Question Type", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = state.questionType == "Objectives",
+                                onClick = { viewModel.updateQuestionType("Objectives") },
+                                label = { Text("Objectives (MCQ)") }
+                            )
+                            FilterChip(
+                                selected = state.questionType == "Essay",
+                                onClick = { viewModel.updateQuestionType("Essay") },
+                                label = { Text("Essay") }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text("Number of Questions: ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                        Slider(
+                            value = state.numberOfQuestions.toFloat(),
+                            onValueChange = { viewModel.updateNumberOfQuestions(it.roundToInt()) },
+                            valueRange = 1f..20f,
+                            steps = 18
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -214,6 +254,7 @@ fun PdfImportScreen(
                 }
 
             } else {
+                // --- Initial File Picker ---
                 Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     imageVector = Icons.Filled.PictureAsPdf,

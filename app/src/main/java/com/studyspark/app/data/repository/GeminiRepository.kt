@@ -19,7 +19,6 @@ class GeminiRepository {
     }
 
     private val model = GenerativeModel(
-        // UPDATED: Trying the model name recommended by the API error
         modelName = "gemini-3.8-flash",
         apiKey = apiKey,
         generationConfig = generationConfig {
@@ -33,16 +32,33 @@ class GeminiRepository {
 
     suspend fun generateQuestionsFromText(
         extractedText: String,
-        numberOfQuestions: Int = 5
+        numberOfQuestions: Int,
+        questionType: String // "Objectives" or "Essay"
     ): List<DraftQuestion> = withContext(Dispatchers.IO) {
-        val prompt = """
+        
+        val prompt = if (questionType == "Essay") {
+            """
+            You are an expert educator. Based on the following text, generate exactly $numberOfQuestions essay or short-answer questions.
+            Return the response ONLY as a JSON array of objects. Do not include markdown formatting.
+            Each object must have these exact keys:
+            - "question": The essay question text (String)
+            - "options": An array of exactly 4 strings. Use "See Explanation" for the first element, and "N/A" for the other three.
+            - "correctIndex": Use 0
+            - "explanation": The model answer or key points expected in the student's response (String)
+            
+            Text:
+            $extractedText
+            """.trimIndent()
+        } else {
+            """
             You are an expert educator. Based on the following text, generate exactly $numberOfQuestions multiple-choice questions.
             Return the response ONLY as a JSON array of objects. Do not include markdown formatting.
             Each object must have these exact keys: "question", "options" (array of 4 strings), "correctIndex" (0-3), and "explanation".
             
             Text:
             $extractedText
-        """.trimIndent()
+            """.trimIndent()
+        }
 
         try {
             val response = model.generateContent(prompt)
