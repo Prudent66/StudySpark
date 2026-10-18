@@ -32,19 +32,26 @@ class GeminiRepository {
         extractedText: String,
         numberOfQuestions: Int,
         questionType: String,
-        hasSubQuestions: Boolean = false // NEW
+        hasSubQuestions: Boolean = false,
+        subQuestionsPerQuestion: Int = 2 // NEW
     ): List<DraftQuestion> = withContext(Dispatchers.IO) {
         
         val prompt = if (questionType == "Essay") {
             val subQuestionInstruction = if (hasSubQuestions) {
                 """
-                Each question MUST have parts (a, b) and sub-parts (i, ii, iii). 
+                Each question MUST have exactly $subQuestionsPerQuestion parts labeled as (a), (b), (c), etc.
+                For EACH part, include exactly 2 sub-parts labeled as (i), (ii).
+                
+                VERY IMPORTANT: Do NOT include the main question number (e.g., "1.", "2.") in the text. Start directly with the question text or with the first part (a).
                 Use newline characters (\n) to format the text clearly. 
                 Example format:
-                "1. Main question text...\n(a) First part...\n(i) Sub-part...\n(ii) Sub-part...\n(b) Second part..."
+                "Main question text...\n(a) First part...\n(i) Sub-part...\n(ii) Sub-part...\n(b) Second part..."
                 """
             } else {
-                "Generate standard essay questions without sub-parts."
+                """
+                Generate standard essay questions.
+                VERY IMPORTANT: Do NOT include the main question number (e.g., "1.", "2.") in the text. Start directly with the question text.
+                """
             }
 
             """

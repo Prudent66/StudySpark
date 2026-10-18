@@ -32,15 +32,16 @@ data class PdfImportUiState(
     val errorMessage: String? = null,
     val questionType: String = "Objectives", 
     val numberOfQuestions: Int = 5,
-    val hasSubQuestions: Boolean = false, // NEW
+    val hasSubQuestions: Boolean = false,
+    val subQuestionsPerQuestion: Int = 2, // NEW: Number of parts (a, b, c...)
     
     // PDF Header State
     val showHeaderDialog: Boolean = false,
     val schoolName: String = "StudySpark University",
-    val department: String = "Department of Computer Science", // NEW
-    val courseTitle: String = "Course Title: Introduction to Computing", // NEW
-    val timeAllowed: String = "Time Allowed: 2 Hours", // NEW
-    val examDate: String = "Date: October 2026", // NEW
+    val department: String = "Department of Computer Science",
+    val courseTitle: String = "Course Title: Introduction to Computing",
+    val timeAllowed: String = "Time Allowed: 2 Hours",
+    val examDate: String = "Date: October 2026",
     val examTitle: String = "End of Semester Examination",
     val instructions: String = "Answer all questions. Each question carries equal marks.",
     
@@ -76,6 +77,11 @@ class PdfImportViewModel(
 
     fun toggleSubQuestions(hasSub: Boolean) {
         _uiState.value = _uiState.value.copy(hasSubQuestions = hasSub)
+    }
+
+    // NEW: Update number of parts (a, b, c)
+    fun updateSubQuestionsPerQuestion(count: Int) {
+        _uiState.value = _uiState.value.copy(subQuestionsPerQuestion = count)
     }
 
     // Dialog State Updates
@@ -131,7 +137,8 @@ class PdfImportViewModel(
                         extractedText = state.extractedText,
                         numberOfQuestions = state.numberOfQuestions,
                         questionType = state.questionType,
-                        hasSubQuestions = state.hasSubQuestions // Pass the flag
+                        hasSubQuestions = state.hasSubQuestions,
+                        subQuestionsPerQuestion = state.subQuestionsPerQuestion // Pass new arg
                     )
                 }
 

@@ -99,51 +99,26 @@ fun PdfImportScreen(
             title = { Text("Customize PDF Header") },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    OutlinedTextField(
-                        value = state.schoolName, onValueChange = { viewModel.updateSchoolName(it) },
-                        label = { Text("School/Institution") }, singleLine = true
-                    )
+                    OutlinedTextField(value = state.schoolName, onValueChange = { viewModel.updateSchoolName(it) }, label = { Text("School/Institution") }, singleLine = true)
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = state.department, onValueChange = { viewModel.updateDepartment(it) },
-                        label = { Text("Department") }, singleLine = true
-                    )
+                    OutlinedTextField(value = state.department, onValueChange = { viewModel.updateDepartment(it) }, label = { Text("Department") }, singleLine = true)
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = state.courseTitle, onValueChange = { viewModel.updateCourseTitle(it) },
-                        label = { Text("Course Title") }, singleLine = true
-                    )
+                    OutlinedTextField(value = state.courseTitle, onValueChange = { viewModel.updateCourseTitle(it) }, label = { Text("Course Title") }, singleLine = true)
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = state.examTitle, onValueChange = { viewModel.updateExamTitle(it) },
-                        label = { Text("Exam Title") }, singleLine = true
-                    )
+                    OutlinedTextField(value = state.examTitle, onValueChange = { viewModel.updateExamTitle(it) }, label = { Text("Exam Title") }, singleLine = true)
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = state.timeAllowed, onValueChange = { viewModel.updateTimeAllowed(it) },
-                        label = { Text("Time Allowed") }, singleLine = true
-                    )
+                    OutlinedTextField(value = state.timeAllowed, onValueChange = { viewModel.updateTimeAllowed(it) }, label = { Text("Time Allowed") }, singleLine = true)
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = state.examDate, onValueChange = { viewModel.updateExamDate(it) },
-                        label = { Text("Date") }, singleLine = true
-                    )
+                    OutlinedTextField(value = state.examDate, onValueChange = { viewModel.updateExamDate(it) }, label = { Text("Date") }, singleLine = true)
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = state.instructions, onValueChange = { viewModel.updateInstructions(it) },
-                        label = { Text("Instructions") }, minLines = 2
-                    )
+                    OutlinedTextField(value = state.instructions, onValueChange = { viewModel.updateInstructions(it) }, label = { Text("Instructions") }, minLines = 2)
                 }
             },
             confirmButton = {
-                Button(onClick = { viewModel.generatePdf(context) }) {
-                    Text("Generate PDF")
-                }
+                Button(onClick = { viewModel.generatePdf(context) }) { Text("Generate PDF") }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.showHeaderDialog(false) }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { viewModel.showHeaderDialog(false) }) { Text("Cancel") }
             }
         )
     }
@@ -153,18 +128,13 @@ fun PdfImportScreen(
             TopAppBar(
                 title = { Text("Import PDF") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 }
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (state.isLoadingPdf) {
@@ -177,18 +147,13 @@ fun PdfImportScreen(
             }
 
             if (state.generatedQuestions.isNotEmpty()) {
-                // --- Generated Questions Preview ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.padding(4.dp))
-                    Text(
-                        text = "${state.generatedQuestions.size} Questions Generated!",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(text = "${state.generatedQuestions.size} Questions Generated!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -203,6 +168,7 @@ fun PdfImportScreen(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
+                                // FIXED: The text is now just "${index + 1}. ${q.text}" because Gemini no longer adds the number
                                 Text(text = "${index + 1}. ${q.text}", fontWeight = FontWeight.SemiBold)
                                 if (q.options.isNotEmpty() && q.options[0] != "") {
                                     Spacer(modifier = Modifier.height(4.dp))
@@ -225,26 +191,17 @@ fun PdfImportScreen(
                         onClick = { viewModel.saveAndContinueToEditor(onNavigateToEditor) },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text("Continue to Editor & Take Quiz")
-                    }
+                    ) { Text("Continue to Editor & Take Quiz") }
                     Spacer(modifier = Modifier.height(8.dp))
                 } else {
-                    Text(
-                        text = "Essay quizzes are for PDF export only.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    Text(text = "Essay quizzes are for PDF export only.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
                 }
 
                 Button(
                     onClick = { viewModel.showHeaderDialog(true) },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary
-                    )
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                 ) {
                     if (state.isGeneratingPdf) {
                         CircularProgressIndicator(modifier = Modifier.height(20.dp), color = MaterialTheme.colorScheme.onSecondary, strokeWidth = 2.dp)
@@ -268,18 +225,13 @@ fun PdfImportScreen(
                 }
 
             } else if (state.extractedText.isNotEmpty()) {
-                // --- Extracted Text & AI Configuration ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.padding(4.dp))
-                    Text(
-                        text = "PDF Text Extracted",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(text = "PDF Text Extracted", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -288,16 +240,11 @@ fun PdfImportScreen(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
-                    Text(
-                        text = state.extractedText,
-                        modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text(text = state.extractedText, modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()), style = MaterialTheme.typography.bodySmall)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Configuration UI
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -318,7 +265,6 @@ fun PdfImportScreen(
                             )
                         }
 
-                        // NEW: Sub-questions Toggle for Essay
                         if (state.questionType == "Essay") {
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(
@@ -328,18 +274,27 @@ fun PdfImportScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Include Sub-questions", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                                    Text("Format with Romans (i, ii, iii) and parts (a, b)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Format with parts (a, b) and Romans (i, ii)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                Switch(
-                                    checked = state.hasSubQuestions,
-                                    onCheckedChange = { viewModel.toggleSubQuestions(it) }
+                                Switch(checked = state.hasSubQuestions, onCheckedChange = { viewModel.toggleSubQuestions(it) })
+                            }
+
+                            // NEW: Slider for Number of Parts per Question
+                            if (state.hasSubQuestions) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Number of Parts per Question: ${state.subQuestionsPerQuestion}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                                Slider(
+                                    value = state.subQuestionsPerQuestion.toFloat(),
+                                    onValueChange = { viewModel.updateSubQuestionsPerQuestion(it.roundToInt()) },
+                                    valueRange = 1f..5f,
+                                    steps = 3 // 1, 2, 3, 4, 5
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text("Number of Questions: ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                        Text("Number of Main Questions: ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
                         Slider(
                             value = state.numberOfQuestions.toFloat(),
                             onValueChange = { viewModel.updateNumberOfQuestions(it.roundToInt()) },
@@ -373,35 +328,19 @@ fun PdfImportScreen(
                 }
 
             } else {
-                // --- Initial File Picker ---
                 Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Filled.PictureAsPdf,
-                    contentDescription = null,
-                    modifier = Modifier.height(80.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                Icon(imageVector = Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.height(80.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Select a PDF Handout",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(text = "Select a PDF Handout", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "We will extract the text and generate a quiz for you.",
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text(text = "We will extract the text and generate a quiz for you.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 Spacer(modifier = Modifier.height(32.dp))
                 Button(
                     onClick = { launcher.launch("application/pdf") },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text("Choose PDF File")
-                }
+                ) { Text("Choose PDF File") }
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
