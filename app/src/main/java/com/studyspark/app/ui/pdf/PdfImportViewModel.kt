@@ -32,15 +32,18 @@ data class PdfImportUiState(
     val errorMessage: String? = null,
     val questionType: String = "Objectives", 
     val numberOfQuestions: Int = 5,
+    val hasSubQuestions: Boolean = false, // NEW
     
     // PDF Header State
     val showHeaderDialog: Boolean = false,
     val schoolName: String = "StudySpark University",
+    val department: String = "Department of Computer Science", // NEW
+    val courseTitle: String = "Course Title: Introduction to Computing", // NEW
+    val timeAllowed: String = "Time Allowed: 2 Hours", // NEW
+    val examDate: String = "Date: October 2026", // NEW
     val examTitle: String = "End of Semester Examination",
-    val courseCode: String = "Course Code: CS101",
     val instructions: String = "Answer all questions. Each question carries equal marks.",
     
-    // Resulting PDF File
     val generatedPdfFile: File? = null
 ) {
     val maxQuestionsAllowed: Int get() = if (questionType == "Essay") 10 else 100
@@ -60,7 +63,8 @@ class PdfImportViewModel(
         val max = if (type == "Essay") 10 else 100
         _uiState.value = _uiState.value.copy(
             questionType = type,
-            numberOfQuestions = currentCount.coerceAtMost(max)
+            numberOfQuestions = currentCount.coerceAtMost(max),
+            hasSubQuestions = if (type == "Essay") _uiState.value.hasSubQuestions else false
         )
     }
 
@@ -70,11 +74,18 @@ class PdfImportViewModel(
         )
     }
 
+    fun toggleSubQuestions(hasSub: Boolean) {
+        _uiState.value = _uiState.value.copy(hasSubQuestions = hasSub)
+    }
+
     // Dialog State Updates
     fun showHeaderDialog(show: Boolean) { _uiState.value = _uiState.value.copy(showHeaderDialog = show) }
     fun updateSchoolName(name: String) { _uiState.value = _uiState.value.copy(schoolName = name) }
+    fun updateDepartment(dept: String) { _uiState.value = _uiState.value.copy(department = dept) }
+    fun updateCourseTitle(title: String) { _uiState.value = _uiState.value.copy(courseTitle = title) }
+    fun updateTimeAllowed(time: String) { _uiState.value = _uiState.value.copy(timeAllowed = time) }
+    fun updateExamDate(date: String) { _uiState.value = _uiState.value.copy(examDate = date) }
     fun updateExamTitle(title: String) { _uiState.value = _uiState.value.copy(examTitle = title) }
-    fun updateCourseCode(code: String) { _uiState.value = _uiState.value.copy(courseCode = code) }
     fun updateInstructions(inst: String) { _uiState.value = _uiState.value.copy(instructions = inst) }
 
     fun extractTextFromPdf(context: Context, uri: Uri, fileName: String) {
@@ -115,11 +126,12 @@ class PdfImportViewModel(
 
         viewModelScope.launch {
             try {
-                val questions = withTimeoutOrNull(90_000L) { // Increased timeout for up to 100 questions
+                val questions = withTimeoutOrNull(90_000L) { 
                     geminiRepository.generateQuestionsFromText(
                         extractedText = state.extractedText,
                         numberOfQuestions = state.numberOfQuestions,
-                        questionType = state.questionType 
+                        questionType = state.questionType,
+                        hasSubQuestions = state.hasSubQuestions // Pass the flag
                     )
                 }
 
@@ -149,8 +161,11 @@ class PdfImportViewModel(
                     context = context,
                     questions = state.generatedQuestions,
                     schoolName = state.schoolName,
+                    department = state.department,
+                    courseTitle = state.courseTitle,
+                    timeAllowed = state.timeAllowed,
+                    examDate = state.examDate,
                     examTitle = state.examTitle,
-                    courseCode = state.courseCode,
                     instructions = state.instructions
                 )
                 _uiState.value = _uiState.value.copy(isGeneratingPdf = false, generatedPdfFile = pdfFile)

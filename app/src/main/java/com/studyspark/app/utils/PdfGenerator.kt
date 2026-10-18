@@ -18,73 +18,115 @@ object PdfGenerator {
         context: Context,
         questions: List<DraftQuestion>,
         schoolName: String,
+        department: String,
+        courseTitle: String,
+        timeAllowed: String,
+        examDate: String,
         examTitle: String,
-        courseCode: String,
         instructions: String
     ): File {
         val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 Size in points
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 Size in points (72 DPI)
         
         var page = pdfDocument.startPage(pageInfo)
         var canvas = page.canvas
 
         val paint = Paint()
-        val textPaint = TextPaint()
-        textPaint.color = Color.BLACK
-        textPaint.textSize = 12f
-        textPaint.isAntiAlias = true
-
-        val boldPaint = TextPaint(textPaint)
-        boldPaint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+        paint.color = Color.BLACK
         
+        // --- Define Text Paints for different elements ---
+        val schoolPaint = TextPaint().apply {
+            color = Color.BLACK; textSize = 18f; isAntiAlias = true
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+        }
+        val deptPaint = TextPaint().apply {
+            color = Color.BLACK; textSize = 13f; isAntiAlias = true
+        }
+        val coursePaint = TextPaint().apply {
+            color = Color.BLACK; textSize = 14f; isAntiAlias = true
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+        }
+        val examTitlePaint = TextPaint().apply {
+            color = Color.BLACK; textSize = 13f; isAntiAlias = true
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+        }
+        val metaPaint = TextPaint().apply {
+            color = Color.DKGRAY; textSize = 12f; isAntiAlias = true
+        }
+        val instructionsPaint = TextPaint().apply {
+            color = Color.BLACK; textSize = 11.5f; isAntiAlias = true
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+        }
+        val questionPaint = TextPaint().apply {
+            color = Color.BLACK; textSize = 12.5f; isAntiAlias = true
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+        }
+        val optionPaint = TextPaint().apply {
+            color = Color.BLACK; textSize = 12f; isAntiAlias = true
+        }
+
         val margin = 50f
-        val contentWidth = 595 - (margin * 2)
+        val pageWidth = 595f
+        val pageHeight = 842f
+        val contentWidth = pageWidth - (margin * 2)
         var yPos = margin
 
-        // 1. Draw Header
-        val headerLayout = StaticLayout.Builder.obtain(schoolName, 0, schoolName.length, boldPaint, contentWidth.toInt())
-            .setAlignment(Layout.Alignment.ALIGN_CENTER).build()
-        canvas.save()
-        canvas.translate(margin, yPos)
-        headerLayout.draw(canvas)
-        canvas.restore()
-        yPos += headerLayout.height + 10f
+        // --- Helper Functions ---
+        fun drawCentered(text: String, paintToUse: TextPaint) {
+            val layout = StaticLayout.Builder.obtain(text, 0, text.length, paintToUse, contentWidth.toInt())
+                .setAlignment(Layout.Alignment.ALIGN_CENTER)
+                .setLineSpacing(0f, 1.1f)
+                .build()
+            canvas.save()
+            canvas.translate(margin, yPos)
+            layout.draw(canvas)
+            canvas.restore()
+            yPos += layout.height + 6f
+        }
 
-        val titleLayout = StaticLayout.Builder.obtain(examTitle, 0, examTitle.length, boldPaint, contentWidth.toInt())
-            .setAlignment(Layout.Alignment.ALIGN_CENTER).build()
-        canvas.save()
-        canvas.translate(margin, yPos)
-        titleLayout.draw(canvas)
-        canvas.restore()
-        yPos += titleLayout.height + 5f
+        // --- 1. Draw Header ---
+        drawCentered(schoolName.uppercase(), schoolPaint)
+        drawCentered(department, deptPaint)
+        drawCentered(courseTitle, coursePaint)
+        drawCentered(examTitle, examTitlePaint)
+        
+        yPos += 10f
+        
+        // Draw Time Allowed (Left) and Date (Right)
+        canvas.drawText(timeAllowed, margin, yPos, metaPaint)
+        val dateWidth = metaPaint.measureText(examDate)
+        canvas.drawText(examDate, pageWidth - margin - dateWidth, yPos, metaPaint)
+        
+        yPos += 15f
+        canvas.drawLine(margin, yPos, pageWidth - margin, yPos, paint) // Divider line
+        yPos += 15f
 
-        val courseLayout = StaticLayout.Builder.obtain(courseCode, 0, courseCode.length, textPaint, contentWidth.toInt())
-            .setAlignment(Layout.Alignment.ALIGN_CENTER).build()
-        canvas.save()
-        canvas.translate(margin, yPos)
-        courseLayout.draw(canvas)
-        canvas.restore()
-        yPos += courseLayout.height + 15f
+        // Draw Instructions
+        if (instructions.isNotBlank()) {
+            val instLayout = StaticLayout.Builder.obtain(instructions, 0, instructions.length, instructionsPaint, contentWidth.toInt())
+                .setLineSpacing(0f, 1.2f)
+                .build()
+            canvas.save()
+            canvas.translate(margin, yPos)
+            instLayout.draw(canvas)
+            canvas.restore()
+            yPos += instLayout.height + 15f
+        }
 
-        val instLayout = StaticLayout.Builder.obtain(instructions, 0, instructions.length, textPaint, contentWidth.toInt())
-            .build()
-        canvas.save()
-        canvas.translate(margin, yPos)
-        instLayout.draw(canvas)
-        canvas.restore()
-        yPos += instLayout.height + 20f
-
-        canvas.drawLine(margin, yPos, 595 - margin, yPos, paint)
+        canvas.drawLine(margin, yPos, pageWidth - margin, yPos, paint) // Another divider
         yPos += 20f
 
-        // 2. Draw Questions
+        // --- 2. Draw Questions ---
         questions.forEachIndexed { index, question ->
-            val questionText = "Question ${index + 1}: ${question.text}"
-            val qLayout = StaticLayout.Builder.obtain(questionText, 0, questionText.length, boldPaint, contentWidth.toInt())
+            // Format the question text with "Q1." at the beginning
+            val questionText = "Q${index + 1}. ${question.text}"
+            
+            val qLayout = StaticLayout.Builder.obtain(questionText, 0, questionText.length, questionPaint, contentWidth.toInt())
+                .setLineSpacing(0f, 1.2f)
                 .build()
 
-            // Check if we need a new page
-            if (yPos + qLayout.height + 100 > 842 - margin) {
+            // Check if we need a new page (leave room for at least one option)
+            if (yPos + qLayout.height + 60 > pageHeight - margin) {
                 pdfDocument.finishPage(page)
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
@@ -95,16 +137,19 @@ object PdfGenerator {
             canvas.translate(margin, yPos)
             qLayout.draw(canvas)
             canvas.restore()
-            yPos += qLayout.height + 10f
+            yPos += qLayout.height + 12f
 
-            if (question.options.isNotEmpty() && question.options[0] != "See Explanation") {
+            // Draw Options (for Objectives)
+            if (question.questionType == "Objectives" && question.options.isNotEmpty() && question.options[0].isNotBlank()) {
                 val labels = listOf("A", "B", "C", "D")
                 question.options.forEachIndexed { optIndex, option ->
                     val optText = "${labels[optIndex]}. $option"
-                    val optLayout = StaticLayout.Builder.obtain(optText, 0, optText.length, textPaint, contentWidth.toInt() - 20)
+                    val optLayout = StaticLayout.Builder.obtain(optText, 0, optText.length, optionPaint, contentWidth.toInt() - 20)
+                        .setLineSpacing(0f, 1.1f)
                         .build()
                     
-                    if (yPos + optLayout.height > 842 - margin) {
+                    // Check page break for options
+                    if (yPos + optLayout.height > pageHeight - margin) {
                         pdfDocument.finishPage(page)
                         page = pdfDocument.startPage(pageInfo)
                         canvas = page.canvas
@@ -112,18 +157,18 @@ object PdfGenerator {
                     }
 
                     canvas.save()
-                    canvas.translate(margin + 20, yPos)
+                    canvas.translate(margin + 15, yPos) // Indent options slightly
                     optLayout.draw(canvas)
                     canvas.restore()
-                    yPos += optLayout.height + 5f
+                    yPos += optLayout.height + 6f
                 }
             }
-            yPos += 15f
+            yPos += 20f // Space between questions
         }
 
         pdfDocument.finishPage(page)
 
-        // 3. Save File
+        // --- 3. Save File ---
         val directory = File(context.getExternalFilesDir(null), "StudySpark_PDFs")
         if (!directory.exists()) directory.mkdirs()
         

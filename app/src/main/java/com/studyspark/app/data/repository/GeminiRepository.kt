@@ -31,16 +31,29 @@ class GeminiRepository {
     suspend fun generateQuestionsFromText(
         extractedText: String,
         numberOfQuestions: Int,
-        questionType: String
+        questionType: String,
+        hasSubQuestions: Boolean = false // NEW
     ): List<DraftQuestion> = withContext(Dispatchers.IO) {
         
         val prompt = if (questionType == "Essay") {
+            val subQuestionInstruction = if (hasSubQuestions) {
+                """
+                Each question MUST have parts (a, b) and sub-parts (i, ii, iii). 
+                Use newline characters (\n) to format the text clearly. 
+                Example format:
+                "1. Main question text...\n(a) First part...\n(i) Sub-part...\n(ii) Sub-part...\n(b) Second part..."
+                """
+            } else {
+                "Generate standard essay questions without sub-parts."
+            }
+
             """
-            You are an expert educator. Based on the following text, generate exactly $numberOfQuestions essay or short-answer questions.
+            You are an expert university lecturer. Based on the following text, generate exactly $numberOfQuestions essay questions.
+            $subQuestionInstruction
             Return the response ONLY as a JSON array of objects. Do not include markdown formatting.
             Each object must have these exact keys:
-            - "question": The essay question text (String)
-            - "options": An empty array [] (since it's an essay)
+            - "question": The full essay question text formatted as requested (String)
+            - "options": An empty array []
             - "correctIndex": Use 0
             - "explanation": The model answer or key points (String)
             

@@ -35,6 +35,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -80,7 +81,6 @@ fun PdfImportScreen(
         if (uri != null) viewModel.extractTextFromPdf(context, uri, "Handout.pdf")
     }
 
-    // Automatically share the PDF when it's generated
     LaunchedEffect(state.generatedPdfFile) {
         state.generatedPdfFile?.let { file ->
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -101,7 +101,17 @@ fun PdfImportScreen(
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     OutlinedTextField(
                         value = state.schoolName, onValueChange = { viewModel.updateSchoolName(it) },
-                        label = { Text("School/Institution Name") }, singleLine = true
+                        label = { Text("School/Institution") }, singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.department, onValueChange = { viewModel.updateDepartment(it) },
+                        label = { Text("Department") }, singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.courseTitle, onValueChange = { viewModel.updateCourseTitle(it) },
+                        label = { Text("Course Title") }, singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
@@ -110,8 +120,13 @@ fun PdfImportScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
-                        value = state.courseCode, onValueChange = { viewModel.updateCourseCode(it) },
-                        label = { Text("Course / Subject") }, singleLine = true
+                        value = state.timeAllowed, onValueChange = { viewModel.updateTimeAllowed(it) },
+                        label = { Text("Time Allowed") }, singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.examDate, onValueChange = { viewModel.updateExamDate(it) },
+                        label = { Text("Date") }, singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
@@ -189,12 +204,14 @@ fun PdfImportScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(text = "${index + 1}. ${q.text}", fontWeight = FontWeight.SemiBold)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                q.options.forEachIndexed { i, opt ->
-                                    Text(
-                                        text = "${listOf("A", "B", "C", "D")[i]}. $opt",
-                                        color = if (i == q.correctOptionIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                if (q.options.isNotEmpty() && q.options[0] != "") {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    q.options.forEachIndexed { i, opt ->
+                                        Text(
+                                            text = "${listOf("A", "B", "C", "D")[i]}. $opt",
+                                            color = if (i == q.correctOptionIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -203,16 +220,23 @@ fun PdfImportScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Buttons
-                Button(
-                    onClick = { viewModel.saveAndContinueToEditor(onNavigateToEditor) },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text("Continue to Editor")
+                if (state.questionType == "Objectives") {
+                    Button(
+                        onClick = { viewModel.saveAndContinueToEditor(onNavigateToEditor) },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("Continue to Editor & Take Quiz")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else {
+                    Text(
+                        text = "Essay quizzes are for PDF export only.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
 
                 Button(
                     onClick = { viewModel.showHeaderDialog(true) },
@@ -285,13 +309,32 @@ fun PdfImportScreen(
                             FilterChip(
                                 selected = state.questionType == "Objectives",
                                 onClick = { viewModel.updateQuestionType("Objectives") },
-                                label = { Text("Objectives (Max 100)") }
+                                label = { Text("Objectives (Playable)") }
                             )
                             FilterChip(
                                 selected = state.questionType == "Essay",
                                 onClick = { viewModel.updateQuestionType("Essay") },
-                                label = { Text("Essay (Max 10)") }
+                                label = { Text("Essay (PDF Only)") }
                             )
+                        }
+
+                        // NEW: Sub-questions Toggle for Essay
+                        if (state.questionType == "Essay") {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Include Sub-questions", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                                    Text("Format with Romans (i, ii, iii) and parts (a, b)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Switch(
+                                    checked = state.hasSubQuestions,
+                                    onCheckedChange = { viewModel.toggleSubQuestions(it) }
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
