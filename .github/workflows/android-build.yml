@@ -20,14 +20,12 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    # NEW: Inject the API key securely from GitHub Secrets
-    - name: Create local.properties
-      run: echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > local.properties
-
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
     - name: Build with Gradle
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: ./gradlew build --no-daemon --stacktrace
 
     - name: Run Unit Tests

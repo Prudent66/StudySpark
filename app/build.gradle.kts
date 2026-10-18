@@ -2,7 +2,11 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
+
+// Read the key from the environment variable (injected by GitHub Actions)
+val geminiApiKey = System.getenv("GEMINI_API_KEY") ?: ""
 
 android {
     namespace = "com.studyspark.app"
@@ -16,8 +20,7 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-        // Read the API key securely from local.properties
-        val geminiApiKey = project.findProperty("GEMINI_API_KEY") as? String ?: ""
+        // Inject it into the app securely
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
@@ -36,7 +39,7 @@ android {
     }
     buildFeatures {
         compose = true
-        buildConfig = true // Enables BuildConfig
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
@@ -64,8 +67,8 @@ dependencies {
 
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
-    // Google Gemini AI SDK
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
