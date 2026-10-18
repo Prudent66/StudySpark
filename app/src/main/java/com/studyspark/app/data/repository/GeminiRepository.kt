@@ -13,14 +13,14 @@ class GeminiRepository {
     private val apiKey = BuildConfig.GEMINI_API_KEY
 
     init {
-        // Safety check: Fail early with a readable message if the key is missing
         if (apiKey.isBlank()) {
             throw IllegalStateException("GEMINI_API_KEY is missing. Check GitHub Secrets.")
         }
     }
 
     private val model = GenerativeModel(
-        modelName = "gemini-1.5-flash",
+        // UPDATED: Switched to the current Gemini 2.5 Flash model
+        modelName = "gemini-2.5-flash",
         apiKey = apiKey,
         generationConfig = generationConfig {
             temperature = 0.2f
