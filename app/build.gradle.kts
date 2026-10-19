@@ -64,8 +64,11 @@ dependencies {
 
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     
-    // NEW: ML Kit for OCR (Image PDFs)
+    // ML Kit for OCR
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.0")
+    
+    // NEW: Coroutines support for Google Play Services (ML Kit tasks)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
