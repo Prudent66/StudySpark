@@ -1,6 +1,7 @@
 package com.studyspark.app.ui.pdf
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
@@ -74,8 +76,14 @@ fun PdfImportScreen(
     )
     val state by viewModel.uiState.collectAsState()
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+    // PDF Launcher
+    val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) viewModel.extractTextFromPdf(context, uri, "Handout.pdf")
+    }
+
+    // Camera Launcher (NEW)
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
+        if (bitmap != null) viewModel.extractTextFromImage(bitmap)
     }
 
     LaunchedEffect(state.generatedPdfFile) {
@@ -119,7 +127,7 @@ fun PdfImportScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Import PDF") },
+                title = { Text("Import Handout") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
             )
         }
@@ -129,7 +137,7 @@ fun PdfImportScreen(
                 Spacer(modifier = Modifier.weight(1f))
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Extracting text from PDF...")
+                Text("Extracting text & running OCR...")
                 Spacer(modifier = Modifier.weight(1f))
                 return@Scaffold
             }
@@ -195,7 +203,7 @@ fun PdfImportScreen(
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.padding(4.dp))
-                    Text(text = "PDF Text Extracted", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(text = "Text Extracted", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -256,12 +264,40 @@ fun PdfImportScreen(
                 Spacer(modifier = Modifier.weight(1f))
                 Icon(imageVector = Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.height(80.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Select a PDF Handout", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(text = "Import Handout", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "We will extract the text and generate a quiz for you.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = "Choose a PDF or take a photo of your handout to extract the text.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 Spacer(modifier = Modifier.height(32.dp))
-                Button(onClick = { launcher.launch("application/pdf") }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp)) { Text("Choose PDF File") }
+                
+                // NEW: Two buttons side-by-side
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = { pdfLauncher.launch("application/pdf") },
+                        modifier = Modifier.weight(1f).height(60.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Filled.PictureAsPdf, contentDescription = null)
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Text("PDF File")
+                    }
+                    
+                    Button(
+                        onClick = { cameraLauncher.launch(null) },
+                        modifier = Modifier.weight(1f).height(60.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        )
+                    ) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = null)
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Text("Take Photo")
+                    }
+                }
                 Spacer(modifier = Modifier.weight(1f))
             }
         }

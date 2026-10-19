@@ -38,11 +38,10 @@ data class PdfImportUiState(
     val generatedQuestions: List<DraftQuestion> = emptyList(),
     val errorMessage: String? = null,
     val questionType: String = "Objectives", 
-    val numberOfQuestions: Int = 3, // Q1, Q2
-    val numberOfParts: Int = 2,     // a, b
-    val numberOfSubParts: Int = 2,  // i, ii
+    val numberOfQuestions: Int = 3, 
+    val numberOfParts: Int = 2,     
+    val numberOfSubParts: Int = 2,  
     
-    // PDF Header State
     val showHeaderDialog: Boolean = false,
     val schoolName: String = "StudySpark University",
     val department: String = "Department of Computer Science",
@@ -88,6 +87,7 @@ class PdfImportViewModel(
     fun updateExamTitle(title: String) { _uiState.value = _uiState.value.copy(examTitle = title) }
     fun updateInstructions(inst: String) { _uiState.value = _uiState.value.copy(instructions = inst) }
 
+    // --- PDF EXTRACTION ---
     fun extractTextFromPdf(context: Context, uri: Uri, fileName: String) {
         _uiState.value = _uiState.value.copy(isLoadingPdf = true, fileName = fileName, errorMessage = null)
 
@@ -100,16 +100,14 @@ class PdfImportViewModel(
                             tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
                         } ?: throw Exception("Could not open file stream")
 
-                        // 1. Try standard text extraction
                         var extracted = ""
                         PDDocument.load(tempFile).use { document ->
                             val stripper = PDFTextStripper()
                             extracted = stripper.getText(document)
                         }
 
-                        // 2. Check if it's garbage (OCR needed)
                         if (isLikelyImagePdf(extracted)) {
-                            extractTextWithOcr(tempFile)
+                            extractTextFromPdfOcr(tempFile)
                         } else {
                             extracted
                         }
@@ -129,16 +127,15 @@ class PdfImportViewModel(
 
     private fun isLikelyImagePdf(text: String): Boolean {
         val words = text.split(Regex("\\s+"))
-        if (words.size < 20) return true // Too short, probably an image
+        if (words.size < 20) return true
         val mostFrequent = words.groupingBy { it.lowercase() }.eachCount().maxByOrNull { it.value }
-        return mostFrequent != null && mostFrequent.value > words.size * 0.3 // e.g., "CamScanner" repeated
+        return mostFrequent != null && mostFrequent.value > words.size * 0.3
     }
 
-    private suspend fun extractTextWithOcr(pdfFile: File): String {
+    private suspend fun extractTextFromPdfOcr(pdfFile: File): String {
         val builder = StringBuilder()
         val descriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY)
         val renderer = PdfRenderer(descriptor)
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         try {
             for (i in 0 until renderer.pageCount) {
@@ -148,9 +145,7 @@ class PdfImportViewModel(
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 page.close()
 
-                val image = InputImage.fromBitmap(bitmap, 0)
-                val result = recognizer.process(image).await()
-                builder.append(result.text).append("\n")
+                builder.append(performOcr(bitmap)).append("\n")
             }
         } finally {
             renderer.close()
@@ -159,6 +154,33 @@ class PdfImportViewModel(
         return builder.toString()
     }
 
+    // --- CAMERA EXTRACTION (NEW) ---
+    fun extractTextFromImage(bitmap: Bitmap) {
+        _uiState.value = _uiState.value.copy(isLoadingPdf = true, fileName = "Camera_Photo", errorMessage = null)
+        viewModelScope.launch {
+            try {
+                val text = withContext(Dispatchers.IO) {
+                    performOcr(bitmap)
+                }
+                if (text.isBlank()) {
+                    _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "No text found in the image.")
+                } else {
+                    _uiState.value = _uiState.value.copy(isLoadingPdf = false, extractedText = text.trim())
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "Failed to read image: ${e.message}")
+            }
+        }
+    }
+
+    // --- REUSABLE OCR FUNCTION ---
+    private suspend fun performOcr(bitmap: Bitmap): String {
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        val image = InputImage.fromBitmap(bitmap, 0)
+        return recognizer.process(image).await().text
+    }
+
+    // --- AI GENERATION ---
     fun generateQuestionsWithAi() {
         val state = _uiState.value
         if (state.extractedText.isBlank()) return
