@@ -31,31 +31,25 @@ class GeminiRepository {
     suspend fun generateQuestionsFromText(
         extractedText: String,
         numberOfQuestions: Int,
-        questionType: String,
-        hasSubQuestions: Boolean = false,
-        subQuestionsPerQuestion: Int = 2 // NEW
+        numberOfParts: Int, // NEW
+        numberOfSubParts: Int, // NEW
+        questionType: String
     ): List<DraftQuestion> = withContext(Dispatchers.IO) {
         
         val prompt = if (questionType == "Essay") {
-            val subQuestionInstruction = if (hasSubQuestions) {
-                """
-                Each question MUST have exactly $subQuestionsPerQuestion parts labeled as (a), (b), (c), etc.
-                For EACH part, include exactly 2 sub-parts labeled as (i), (ii).
-                
-                VERY IMPORTANT: Do NOT include the main question number (e.g., "1.", "2.") in the text. Start directly with the question text or with the first part (a).
-                Use newline characters (\n) to format the text clearly. 
-                Example format:
-                "Main question text...\n(a) First part...\n(i) Sub-part...\n(ii) Sub-part...\n(b) Second part..."
-                """
-            } else {
-                """
-                Generate standard essay questions.
-                VERY IMPORTANT: Do NOT include the main question number (e.g., "1.", "2.") in the text. Start directly with the question text.
-                """
-            }
+            val subQuestionInstruction = """
+            Generate exactly $numberOfQuestions main questions.
+            Each main question MUST have exactly $numberOfParts parts labeled as (a), (b), (c), etc.
+            For EACH part, include exactly $numberOfSubParts sub-parts labeled as (i), (ii), (iii).
+            
+            VERY IMPORTANT: Do NOT include the main question number (e.g., "1.", "2.") in the text. Start directly with the question text.
+            Use newline characters (\n) to format the text clearly. 
+            Example format:
+            "Main question text...\n(a) First part...\n(i) Sub-part...\n(ii) Sub-part...\n(b) Second part..."
+            """.trimIndent()
 
             """
-            You are an expert university lecturer. Based on the following text, generate exactly $numberOfQuestions essay questions.
+            You are an expert university lecturer. Based on the following text, generate the requested questions.
             $subQuestionInstruction
             Return the response ONLY as a JSON array of objects. Do not include markdown formatting.
             Each object must have these exact keys:
@@ -87,13 +81,11 @@ class GeminiRepository {
             val jsonArray = JSONArray(jsonString)
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-                
                 val optionsList = mutableListOf<String>()
                 if (questionType != "Essay") {
                     val optionsArray = obj.getJSONArray("options")
                     for (j in 0 until 4) optionsList.add(optionsArray.getString(j))
                 }
-                
                 questions.add(
                     DraftQuestion(
                         text = obj.getString("question"),
@@ -106,7 +98,12 @@ class GeminiRepository {
             }
             questions
         } catch (e: Exception) {
-            throw Exception("AI generation failed: ${e.message}")
+            val msg = e.message ?: ""
+            // NEW: Catch Rate Limit / Quota Error
+            if (msg.contains("quota", ignoreCase = true) || msg.contains("429", ignoreCase = true)) {
+                throw Exception("API Limit Reached. Please wait a minute before generating again, or upgrade your Google AI Studio billing plan.")
+            }
+            throw Exception("AI generation failed: $msg")
         }
     }
 }

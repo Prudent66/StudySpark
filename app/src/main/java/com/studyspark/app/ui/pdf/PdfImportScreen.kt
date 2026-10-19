@@ -35,7 +35,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -75,9 +74,7 @@ fun PdfImportScreen(
     )
     val state by viewModel.uiState.collectAsState()
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) viewModel.extractTextFromPdf(context, uri, "Handout.pdf")
     }
 
@@ -114,12 +111,8 @@ fun PdfImportScreen(
                     OutlinedTextField(value = state.instructions, onValueChange = { viewModel.updateInstructions(it) }, label = { Text("Instructions") }, minLines = 2)
                 }
             },
-            confirmButton = {
-                Button(onClick = { viewModel.generatePdf(context) }) { Text("Generate PDF") }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.showHeaderDialog(false) }) { Text("Cancel") }
-            }
+            confirmButton = { Button(onClick = { viewModel.generatePdf(context) }) { Text("Generate PDF") } },
+            dismissButton = { TextButton(onClick = { viewModel.showHeaderDialog(false) }) { Text("Cancel") } }
         )
     }
 
@@ -127,16 +120,11 @@ fun PdfImportScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Import PDF") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                }
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             if (state.isLoadingPdf) {
                 Spacer(modifier = Modifier.weight(1f))
                 CircularProgressIndicator()
@@ -147,10 +135,7 @@ fun PdfImportScreen(
             }
 
             if (state.generatedQuestions.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text(text = "${state.generatedQuestions.size} Questions Generated!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -158,25 +143,15 @@ fun PdfImportScreen(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                Column(
-                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     state.generatedQuestions.forEachIndexed { index, q ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)), shape = RoundedCornerShape(12.dp)) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                // FIXED: The text is now just "${index + 1}. ${q.text}" because Gemini no longer adds the number
                                 Text(text = "${index + 1}. ${q.text}", fontWeight = FontWeight.SemiBold)
                                 if (q.options.isNotEmpty() && q.options[0] != "") {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     q.options.forEachIndexed { i, opt ->
-                                        Text(
-                                            text = "${listOf("A", "B", "C", "D")[i]}. $opt",
-                                            color = if (i == q.correctOptionIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Text(text = "${listOf("A", "B", "C", "D")[i]}. $opt", color = if (i == q.correctOptionIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             }
@@ -187,11 +162,7 @@ fun PdfImportScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (state.questionType == "Objectives") {
-                    Button(
-                        onClick = { viewModel.saveAndContinueToEditor(onNavigateToEditor) },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) { Text("Continue to Editor & Take Quiz") }
+                    Button(onClick = { viewModel.saveAndContinueToEditor(onNavigateToEditor) }, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) { Text("Continue to Editor & Take Quiz") }
                     Spacer(modifier = Modifier.height(8.dp))
                 } else {
                     Text(text = "Essay quizzes are for PDF export only.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
@@ -214,21 +185,14 @@ fun PdfImportScreen(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                OutlinedButton(
-                    onClick = { viewModel.generateQuestionsWithAi() },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
+                OutlinedButton(onClick = { viewModel.generateQuestionsWithAi() }, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) {
                     Icon(Icons.Filled.Refresh, contentDescription = null)
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text("Regenerate Questions")
                 }
 
             } else if (state.extractedText.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text(text = "PDF Text Extracted", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -236,71 +200,36 @@ fun PdfImportScreen(
                 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Card(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                ) {
+                Card(modifier = Modifier.weight(1f).fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
                     Text(text = state.extractedText, modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()), style = MaterialTheme.typography.bodySmall)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
+                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Question Type", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = state.questionType == "Objectives",
-                                onClick = { viewModel.updateQuestionType("Objectives") },
-                                label = { Text("Objectives (Playable)") }
-                            )
-                            FilterChip(
-                                selected = state.questionType == "Essay",
-                                onClick = { viewModel.updateQuestionType("Essay") },
-                                label = { Text("Essay (PDF Only)") }
-                            )
+                            FilterChip(selected = state.questionType == "Objectives", onClick = { viewModel.updateQuestionType("Objectives") }, label = { Text("Objectives") })
+                            FilterChip(selected = state.questionType == "Essay", onClick = { viewModel.updateQuestionType("Essay") }, label = { Text("Essay (PDF)") })
                         }
 
                         if (state.questionType == "Essay") {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Include Sub-questions", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                                    Text("Format with parts (a, b) and Romans (i, ii)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                Switch(checked = state.hasSubQuestions, onCheckedChange = { viewModel.toggleSubQuestions(it) })
-                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Number of Main Questions (Q1, Q2...): ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                            Slider(value = state.numberOfQuestions.toFloat(), onValueChange = { viewModel.updateNumberOfQuestions(it.roundToInt()) }, valueRange = 1f..10f, steps = 8)
 
-                            // NEW: Slider for Number of Parts per Question
-                            if (state.hasSubQuestions) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text("Number of Parts per Question: ${state.subQuestionsPerQuestion}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                                Slider(
-                                    value = state.subQuestionsPerQuestion.toFloat(),
-                                    onValueChange = { viewModel.updateSubQuestionsPerQuestion(it.roundToInt()) },
-                                    valueRange = 1f..5f,
-                                    steps = 3 // 1, 2, 3, 4, 5
-                                )
-                            }
+                            Text("Number of Parts (a, b, c...): ${state.numberOfParts}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                            Slider(value = state.numberOfParts.toFloat(), onValueChange = { viewModel.updateNumberOfParts(it.roundToInt()) }, valueRange = 1f..5f, steps = 3)
+
+                            Text("Number of Sub-parts (i, ii...): ${state.numberOfSubParts}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                            Slider(value = state.numberOfSubParts.toFloat(), onValueChange = { viewModel.updateNumberOfSubParts(it.roundToInt()) }, valueRange = 1f..5f, steps = 3)
+                        } else {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Number of Questions: ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                            Slider(value = state.numberOfQuestions.toFloat(), onValueChange = { viewModel.updateNumberOfQuestions(it.roundToInt()) }, valueRange = 1f..100f, steps = 98)
                         }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text("Number of Main Questions: ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                        Slider(
-                            value = state.numberOfQuestions.toFloat(),
-                            onValueChange = { viewModel.updateNumberOfQuestions(it.roundToInt()) },
-                            valueRange = 1f..state.maxQuestionsAllowed.toFloat(),
-                            steps = (state.maxQuestionsAllowed - 2).coerceAtLeast(0)
-                        )
                     }
                 }
 
@@ -311,11 +240,7 @@ fun PdfImportScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Gemini is generating your quiz...")
                 } else {
-                    Button(
-                        onClick = { viewModel.generateQuestionsWithAi() },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
+                    Button(onClick = { viewModel.generateQuestionsWithAi() }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp)) {
                         Icon(Icons.Filled.AutoAwesome, contentDescription = null)
                         Spacer(modifier = Modifier.padding(4.dp))
                         Text("Generate Questions with AI")
@@ -336,11 +261,7 @@ fun PdfImportScreen(
                 Text(text = "We will extract the text and generate a quiz for you.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 Spacer(modifier = Modifier.height(32.dp))
-                Button(
-                    onClick = { launcher.launch("application/pdf") },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) { Text("Choose PDF File") }
+                Button(onClick = { launcher.launch("application/pdf") }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp)) { Text("Choose PDF File") }
                 Spacer(modifier = Modifier.weight(1f))
             }
         }

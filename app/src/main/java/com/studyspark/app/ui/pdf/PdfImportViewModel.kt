@@ -1,9 +1,15 @@
 package com.studyspark.app.ui.pdf
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.studyspark.app.data.repository.GeminiRepository
 import com.studyspark.app.data.repository.QuizRepository
 import com.studyspark.app.domain.model.DraftQuestion
@@ -19,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.util.UUID
 
@@ -31,9 +38,9 @@ data class PdfImportUiState(
     val generatedQuestions: List<DraftQuestion> = emptyList(),
     val errorMessage: String? = null,
     val questionType: String = "Objectives", 
-    val numberOfQuestions: Int = 5,
-    val hasSubQuestions: Boolean = false,
-    val subQuestionsPerQuestion: Int = 2, // NEW: Number of parts (a, b, c...)
+    val numberOfQuestions: Int = 3, // Q1, Q2
+    val numberOfParts: Int = 2,     // a, b
+    val numberOfSubParts: Int = 2,  // i, ii
     
     // PDF Header State
     val showHeaderDialog: Boolean = false,
@@ -64,27 +71,14 @@ class PdfImportViewModel(
         val max = if (type == "Essay") 10 else 100
         _uiState.value = _uiState.value.copy(
             questionType = type,
-            numberOfQuestions = currentCount.coerceAtMost(max),
-            hasSubQuestions = if (type == "Essay") _uiState.value.hasSubQuestions else false
+            numberOfQuestions = currentCount.coerceAtMost(max)
         )
     }
 
-    fun updateNumberOfQuestions(count: Int) {
-        _uiState.value = _uiState.value.copy(
-            numberOfQuestions = count.coerceIn(1, _uiState.value.maxQuestionsAllowed)
-        )
-    }
+    fun updateNumberOfQuestions(count: Int) { _uiState.value = _uiState.value.copy(numberOfQuestions = count.coerceIn(1, _uiState.value.maxQuestionsAllowed)) }
+    fun updateNumberOfParts(count: Int) { _uiState.value = _uiState.value.copy(numberOfParts = count.coerceIn(1, 5)) }
+    fun updateNumberOfSubParts(count: Int) { _uiState.value = _uiState.value.copy(numberOfSubParts = count.coerceIn(1, 5)) }
 
-    fun toggleSubQuestions(hasSub: Boolean) {
-        _uiState.value = _uiState.value.copy(hasSubQuestions = hasSub)
-    }
-
-    // NEW: Update number of parts (a, b, c)
-    fun updateSubQuestionsPerQuestion(count: Int) {
-        _uiState.value = _uiState.value.copy(subQuestionsPerQuestion = count)
-    }
-
-    // Dialog State Updates
     fun showHeaderDialog(show: Boolean) { _uiState.value = _uiState.value.copy(showHeaderDialog = show) }
     fun updateSchoolName(name: String) { _uiState.value = _uiState.value.copy(schoolName = name) }
     fun updateDepartment(dept: String) { _uiState.value = _uiState.value.copy(department = dept) }
@@ -106,15 +100,24 @@ class PdfImportViewModel(
                             tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
                         } ?: throw Exception("Could not open file stream")
 
+                        // 1. Try standard text extraction
+                        var extracted = ""
                         PDDocument.load(tempFile).use { document ->
                             val stripper = PDFTextStripper()
-                            stripper.getText(document)
+                            extracted = stripper.getText(document)
+                        }
+
+                        // 2. Check if it's garbage (OCR needed)
+                        if (isLikelyImagePdf(extracted)) {
+                            extractTextWithOcr(tempFile)
+                        } else {
+                            extracted
                         }
                     } finally { tempFile.delete() }
                 }
 
                 if (text.isBlank()) {
-                    _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "No selectable text found.")
+                    _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "No text found even after OCR.")
                 } else {
                     _uiState.value = _uiState.value.copy(isLoadingPdf = false, extractedText = text.trim())
                 }
@@ -122,6 +125,38 @@ class PdfImportViewModel(
                 _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "Failed to read PDF: ${e.message}")
             }
         }
+    }
+
+    private fun isLikelyImagePdf(text: String): Boolean {
+        val words = text.split(Regex("\\s+"))
+        if (words.size < 20) return true // Too short, probably an image
+        val mostFrequent = words.groupingBy { it.lowercase() }.eachCount().maxByOrNull { it.value }
+        return mostFrequent != null && mostFrequent.value > words.size * 0.3 // e.g., "CamScanner" repeated
+    }
+
+    private suspend fun extractTextWithOcr(pdfFile: File): String {
+        val builder = StringBuilder()
+        val descriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY)
+        val renderer = PdfRenderer(descriptor)
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+
+        try {
+            for (i in 0 until renderer.pageCount) {
+                val page = renderer.openPage(i)
+                val bitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+                bitmap.eraseColor(android.graphics.Color.WHITE)
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                page.close()
+
+                val image = InputImage.fromBitmap(bitmap, 0)
+                val result = recognizer.process(image).await()
+                builder.append(result.text).append("\n")
+            }
+        } finally {
+            renderer.close()
+            descriptor.close()
+        }
+        return builder.toString()
     }
 
     fun generateQuestionsWithAi() {
@@ -136,9 +171,9 @@ class PdfImportViewModel(
                     geminiRepository.generateQuestionsFromText(
                         extractedText = state.extractedText,
                         numberOfQuestions = state.numberOfQuestions,
-                        questionType = state.questionType,
-                        hasSubQuestions = state.hasSubQuestions,
-                        subQuestionsPerQuestion = state.subQuestionsPerQuestion // Pass new arg
+                        numberOfParts = state.numberOfParts,
+                        numberOfSubParts = state.numberOfSubParts,
+                        questionType = state.questionType
                     )
                 }
 
@@ -159,21 +194,12 @@ class PdfImportViewModel(
     fun generatePdf(context: Context) {
         val state = _uiState.value
         if (state.generatedQuestions.isEmpty()) return
-
         _uiState.value = state.copy(isGeneratingPdf = true, showHeaderDialog = false)
-        
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val pdfFile = PdfGenerator.generateQuizPdf(
-                    context = context,
-                    questions = state.generatedQuestions,
-                    schoolName = state.schoolName,
-                    department = state.department,
-                    courseTitle = state.courseTitle,
-                    timeAllowed = state.timeAllowed,
-                    examDate = state.examDate,
-                    examTitle = state.examTitle,
-                    instructions = state.instructions
+                    context, state.generatedQuestions, state.schoolName, state.department,
+                    state.courseTitle, state.timeAllowed, state.examDate, state.examTitle, state.instructions
                 )
                 _uiState.value = _uiState.value.copy(isGeneratingPdf = false, generatedPdfFile = pdfFile)
             } catch (e: Exception) {
@@ -185,7 +211,6 @@ class PdfImportViewModel(
     fun saveAndContinueToEditor(onSuccess: (String) -> Unit) {
         val questions = _uiState.value.generatedQuestions
         if (questions.isEmpty()) return
-
         viewModelScope.launch {
             try {
                 val quizId = UUID.randomUUID().toString()

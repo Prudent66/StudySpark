@@ -5,7 +5,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-// Read the key from the environment variable (injected by GitHub Actions)
 val geminiApiKey = System.getenv("GEMINI_API_KEY") ?: ""
 
 android {
@@ -19,8 +18,6 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
-        // Inject it into the app securely
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
@@ -66,10 +63,12 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
 
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    
+    // NEW: ML Kit for OCR (Image PDFs)
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.0")
 
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     testImplementation("junit:junit:4.13.2")
