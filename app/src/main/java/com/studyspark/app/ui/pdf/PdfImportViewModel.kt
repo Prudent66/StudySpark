@@ -1,10 +1,7 @@
 package com.studyspark.app.ui.pdf
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.pdf.PdfRenderer
 import android.net.Uri
-import android.os.ParcelFileDescriptor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.common.InputImage
@@ -38,10 +35,10 @@ data class PdfImportUiState(
     val generatedQuestions: List<DraftQuestion> = emptyList(),
     val errorMessage: String? = null,
     val questionType: String = "Objectives", 
-    val numberOfQuestions: Int = 3, 
-    val numberOfParts: Int = 2,     
-    val numberOfSubParts: Int = 2,  
+    val numberOfQuestions: Int = 3, // Main questions (a, b, c)
+    val numberOfParts: Int = 2,     // Parts (i, ii, iii)
     
+    // PDF Header State
     val showHeaderDialog: Boolean = false,
     val schoolName: String = "StudySpark University",
     val department: String = "Department of Computer Science",
@@ -75,8 +72,7 @@ class PdfImportViewModel(
     }
 
     fun updateNumberOfQuestions(count: Int) { _uiState.value = _uiState.value.copy(numberOfQuestions = count.coerceIn(1, _uiState.value.maxQuestionsAllowed)) }
-    fun updateNumberOfParts(count: Int) { _uiState.value = _uiState.value.copy(numberOfParts = count.coerceIn(1, 5)) }
-    fun updateNumberOfSubParts(count: Int) { _uiState.value = _uiState.value.copy(numberOfSubParts = count.coerceIn(1, 5)) }
+    fun updateNumberOfParts(count: Int) { _uiState.value = _uiState.value.copy(numberOfParts = count.coerceIn(0, 3)) } // Min 0, Max 3
 
     fun showHeaderDialog(show: Boolean) { _uiState.value = _uiState.value.copy(showHeaderDialog = show) }
     fun updateSchoolName(name: String) { _uiState.value = _uiState.value.copy(schoolName = name) }
@@ -87,7 +83,6 @@ class PdfImportViewModel(
     fun updateExamTitle(title: String) { _uiState.value = _uiState.value.copy(examTitle = title) }
     fun updateInstructions(inst: String) { _uiState.value = _uiState.value.copy(instructions = inst) }
 
-    // --- PDF EXTRACTION ---
     fun extractTextFromPdf(context: Context, uri: Uri, fileName: String) {
         _uiState.value = _uiState.value.copy(isLoadingPdf = true, fileName = fileName, errorMessage = null)
 
@@ -134,15 +129,15 @@ class PdfImportViewModel(
 
     private suspend fun extractTextFromPdfOcr(pdfFile: File): String {
         val builder = StringBuilder()
-        val descriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY)
-        val renderer = PdfRenderer(descriptor)
+        val descriptor = android.os.ParcelFileDescriptor.open(pdfFile, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+        val renderer = android.graphics.pdf.PdfRenderer(descriptor)
 
         try {
             for (i in 0 until renderer.pageCount) {
                 val page = renderer.openPage(i)
-                val bitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+                val bitmap = android.graphics.Bitmap.createBitmap(page.width, page.height, android.graphics.Bitmap.Config.ARGB_8888)
                 bitmap.eraseColor(android.graphics.Color.WHITE)
-                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                page.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 page.close()
 
                 builder.append(performOcr(bitmap)).append("\n")
@@ -154,13 +149,15 @@ class PdfImportViewModel(
         return builder.toString()
     }
 
-    // --- CAMERA EXTRACTION (NEW) ---
-    fun extractTextFromImage(bitmap: Bitmap) {
+    // NEW: Full-resolution camera image extraction
+    fun extractTextFromImageUri(context: Context, uri: Uri) {
         _uiState.value = _uiState.value.copy(isLoadingPdf = true, fileName = "Camera_Photo", errorMessage = null)
         viewModelScope.launch {
             try {
                 val text = withContext(Dispatchers.IO) {
-                    performOcr(bitmap)
+                    val image = InputImage.fromFilePath(context, uri)
+                    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                    recognizer.process(image).await().text
                 }
                 if (text.isBlank()) {
                     _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "No text found in the image.")
@@ -173,14 +170,12 @@ class PdfImportViewModel(
         }
     }
 
-    // --- REUSABLE OCR FUNCTION ---
-    private suspend fun performOcr(bitmap: Bitmap): String {
+    private suspend fun performOcr(bitmap: android.graphics.Bitmap): String {
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         val image = InputImage.fromBitmap(bitmap, 0)
         return recognizer.process(image).await().text
     }
 
-    // --- AI GENERATION ---
     fun generateQuestionsWithAi() {
         val state = _uiState.value
         if (state.extractedText.isBlank()) return
@@ -194,7 +189,6 @@ class PdfImportViewModel(
                         extractedText = state.extractedText,
                         numberOfQuestions = state.numberOfQuestions,
                         numberOfParts = state.numberOfParts,
-                        numberOfSubParts = state.numberOfSubParts,
                         questionType = state.questionType
                     )
                 }
@@ -202,7 +196,7 @@ class PdfImportViewModel(
                 if (questions != null) {
                     _uiState.value = _uiState.value.copy(isGeneratingAi = false, generatedQuestions = questions)
                 } else {
-                    _uiState.value = _uiState.value.copy(isGeneratingAi = false, errorMessage = "Request timed out. Please try fewer questions.")
+                    _uiState.value = _uiState.value.copy(isGeneratingAi = false, errorMessage = "Request timed out.")
                 }
             } catch (e: CancellationException) {
                 _uiState.value = _uiState.value.copy(isGeneratingAi = false)

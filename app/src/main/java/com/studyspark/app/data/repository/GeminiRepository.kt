@@ -10,15 +10,19 @@ import org.json.JSONArray
 
 class GeminiRepository {
 
-    private val apiKey = BuildConfig.GEMINI_API_KEY
+    // Split keys, trim spaces, and filter out empty ones
+    private val apiKeys = BuildConfig.GEMINI_API_KEY
+        .split(",")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
 
     init {
-        if (apiKey.isBlank()) throw IllegalStateException("GEMINI_API_KEY is missing.")
+        if (apiKeys.isEmpty()) throw IllegalStateException("No Gemini API keys found. Check GitHub Secrets.")
     }
 
-    private val model = GenerativeModel(
+    private fun getModel(key: String) = GenerativeModel(
         modelName = "gemini-3.8-flash",
-        apiKey = apiKey,
+        apiKey = key,
         generationConfig = generationConfig {
             temperature = 0.2f
             topK = 32
@@ -30,27 +34,32 @@ class GeminiRepository {
 
     suspend fun generateQuestionsFromText(
         extractedText: String,
-        numberOfQuestions: Int,
-        numberOfParts: Int, // NEW
-        numberOfSubParts: Int, // NEW
+        numberOfQuestions: Int, // a, b, c
+        numberOfParts: Int,     // i, ii, iii
         questionType: String
     ): List<DraftQuestion> = withContext(Dispatchers.IO) {
         
         val prompt = if (questionType == "Essay") {
-            val subQuestionInstruction = """
-            Generate exactly $numberOfQuestions main questions.
-            Each main question MUST have exactly $numberOfParts parts labeled as (a), (b), (c), etc.
-            For EACH part, include exactly $numberOfSubParts sub-parts labeled as (i), (ii), (iii).
-            
-            VERY IMPORTANT: Do NOT include the main question number (e.g., "1.", "2.") in the text. Start directly with the question text.
-            Use newline characters (\n) to format the text clearly. 
-            Example format:
-            "Main question text...\n(a) First part...\n(i) Sub-part...\n(ii) Sub-part...\n(b) Second part..."
-            """.trimIndent()
+            val partsInstruction = if (numberOfParts > 0) {
+                "Each main question MUST have exactly $numberOfParts parts labeled with Roman numerals: (i), (ii), (iii), etc."
+            } else {
+                "Do NOT include any Roman numeral parts. Just provide the main question text."
+            }
 
             """
-            You are an expert university lecturer. Based on the following text, generate the requested questions.
-            $subQuestionInstruction
+            You are an expert university lecturer. Based on the following text, generate exactly $numberOfQuestions main questions.
+            
+            VERY IMPORTANT FORMATTING RULES:
+            1. Label main questions with sequential letters: (a), (b), (c), etc.
+            2. $partsInstruction
+            3. Use newline characters (\n) to separate all parts.
+            4. Do NOT include numbers like "1." or "2." anywhere in the text.
+            
+            Example format (if parts > 0):
+            "(a) Main question text...\n(i) First part...\n(ii) Second part...\n(b) Next main question...\n(i) First part..."
+            Example format (if parts = 0):
+            "(a) Main question text...\n(b) Next main question..."
+            
             Return the response ONLY as a JSON array of objects. Do not include markdown formatting.
             Each object must have these exact keys:
             - "question": The full essay question text formatted as requested (String)
@@ -72,38 +81,50 @@ class GeminiRepository {
             """.trimIndent()
         }
 
-        try {
-            val response = model.generateContent(prompt)
-            val rawResponse = response.text ?: throw Exception("Empty response")
-            val jsonString = rawResponse.replace("```json", "").replace("```", "").trim()
+        var lastException: Exception? = null
 
-            val questions = mutableListOf<DraftQuestion>()
-            val jsonArray = JSONArray(jsonString)
-            for (i in 0 until jsonArray.length()) {
-                val obj = jsonArray.getJSONObject(i)
-                val optionsList = mutableListOf<String>()
-                if (questionType != "Essay") {
-                    val optionsArray = obj.getJSONArray("options")
-                    for (j in 0 until 4) optionsList.add(optionsArray.getString(j))
-                }
-                questions.add(
-                    DraftQuestion(
-                        text = obj.getString("question"),
-                        options = if (questionType == "Essay") listOf("", "", "", "") else optionsList,
-                        correctOptionIndex = obj.optInt("correctIndex", 0),
-                        explanation = obj.optString("explanation", ""),
-                        questionType = questionType
+        // Try each API key in order
+        for ((index, key) in apiKeys.withIndex()) {
+            try {
+                val model = getModel(key)
+                val response = model.generateContent(prompt)
+                val rawResponse = response.text ?: throw Exception("Empty response")
+                val jsonString = rawResponse.replace("```json", "").replace("```", "").trim()
+
+                val questions = mutableListOf<DraftQuestion>()
+                val jsonArray = JSONArray(jsonString)
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    val optionsList = mutableListOf<String>()
+                    if (questionType != "Essay") {
+                        val optionsArray = obj.getJSONArray("options")
+                        for (j in 0 until 4) optionsList.add(optionsArray.getString(j))
+                    }
+                    questions.add(
+                        DraftQuestion(
+                            text = obj.getString("question"),
+                            options = if (questionType == "Essay") listOf("", "", "", "") else optionsList,
+                            correctOptionIndex = obj.optInt("correctIndex", 0),
+                            explanation = obj.optString("explanation", ""),
+                            questionType = questionType
+                        )
                     )
-                )
+                }
+                return@withContext questions // Success!
+
+            } catch (e: Exception) {
+                val msg = e.message ?: ""
+                // If it's a rate limit or invalid key, try the next one
+                if (msg.contains("quota", ignoreCase = true) || 
+                    msg.contains("429", ignoreCase = true) || 
+                    msg.contains("API key not valid", ignoreCase = true)) {
+                    lastException = Exception("Key ${index + 1} failed: $msg")
+                } else {
+                    throw Exception("AI generation failed: $msg") // Fatal error, stop
+                }
             }
-            questions
-        } catch (e: Exception) {
-            val msg = e.message ?: ""
-            // NEW: Catch Rate Limit / Quota Error
-            if (msg.contains("quota", ignoreCase = true) || msg.contains("429", ignoreCase = true)) {
-                throw Exception("API Limit Reached. Please wait a minute before generating again, or upgrade your Google AI Studio billing plan.")
-            }
-            throw Exception("AI generation failed: $msg")
         }
+        
+        throw Exception("All API keys failed. Last error: ${lastException?.message}")
     }
 }

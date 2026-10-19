@@ -1,7 +1,6 @@
 package com.studyspark.app.ui.pdf
 
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -44,6 +43,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,6 +58,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.studyspark.app.data.local.StudySparkDatabase
 import com.studyspark.app.data.repository.QuizRepository
+import java.io.File
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,9 +84,12 @@ fun PdfImportScreen(
         if (uri != null) viewModel.extractTextFromPdf(context, uri, "Handout.pdf")
     }
 
-    // Camera Launcher (NEW)
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
-        if (bitmap != null) viewModel.extractTextFromImage(bitmap)
+    // NEW: Full-resolution Camera Launcher
+    var photoUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success && photoUri != null) {
+            viewModel.extractTextFromImageUri(context, photoUri!!)
+        }
     }
 
     LaunchedEffect(state.generatedPdfFile) {
@@ -137,7 +143,7 @@ fun PdfImportScreen(
                 Spacer(modifier = Modifier.weight(1f))
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Extracting text & running OCR...")
+                Text("Extracting text...")
                 Spacer(modifier = Modifier.weight(1f))
                 return@Scaffold
             }
@@ -155,7 +161,7 @@ fun PdfImportScreen(
                     state.generatedQuestions.forEachIndexed { index, q ->
                         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)), shape = RoundedCornerShape(12.dp)) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(text = "${index + 1}. ${q.text}", fontWeight = FontWeight.SemiBold)
+                                Text(text = q.text, fontWeight = FontWeight.SemiBold)
                                 if (q.options.isNotEmpty() && q.options[0] != "") {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     q.options.forEachIndexed { i, opt ->
@@ -225,14 +231,14 @@ fun PdfImportScreen(
 
                         if (state.questionType == "Essay") {
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Number of Main Questions (Q1, Q2...): ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                            
+                            // ONLY 2 SLIDERS NOW
+                            Text("Main Questions (a, b, c...): ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
                             Slider(value = state.numberOfQuestions.toFloat(), onValueChange = { viewModel.updateNumberOfQuestions(it.roundToInt()) }, valueRange = 1f..10f, steps = 8)
 
-                            Text("Number of Parts (a, b, c...): ${state.numberOfParts}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                            Slider(value = state.numberOfParts.toFloat(), onValueChange = { viewModel.updateNumberOfParts(it.roundToInt()) }, valueRange = 1f..5f, steps = 3)
-
-                            Text("Number of Sub-parts (i, ii...): ${state.numberOfSubParts}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                            Slider(value = state.numberOfSubParts.toFloat(), onValueChange = { viewModel.updateNumberOfSubParts(it.roundToInt()) }, valueRange = 1f..5f, steps = 3)
+                            Text("Parts per Question (i, ii...): ${state.numberOfParts}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                            Slider(value = state.numberOfParts.toFloat(), onValueChange = { viewModel.updateNumberOfParts(it.roundToInt()) }, valueRange = 0f..3f, steps = 2)
+                            
                         } else {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text("Number of Questions: ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
@@ -266,11 +272,10 @@ fun PdfImportScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(text = "Import Handout", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Choose a PDF or take a photo of your handout to extract the text.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = "Choose a PDF or take a clear photo of your handout.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 Spacer(modifier = Modifier.height(32.dp))
                 
-                // NEW: Two buttons side-by-side
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -286,7 +291,12 @@ fun PdfImportScreen(
                     }
                     
                     Button(
-                        onClick = { cameraLauncher.launch(null) },
+                        onClick = { 
+                            // NEW: Full res camera setup
+                            val tempFile = File.createTempFile("camera_", ".jpg", context.cacheDir)
+                            photoUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+                            cameraLauncher.launch(photoUri) 
+                        },
                         modifier = Modifier.weight(1f).height(60.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
