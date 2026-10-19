@@ -25,7 +25,9 @@ jobs:
 
     - name: Build with Gradle
       env:
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        # COMBINE ALL KEYS separated by commas
+        # Add GEMINI_API_KEY_4, GEMINI_API_KEY_5 etc. if you make more!
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }},${{ secrets.GEMINI_API_KEY_2 }},${{ secrets.GEMINI_API_KEY_3 }}
       run: ./gradlew build --no-daemon --stacktrace
 
     - name: Run Unit Tests
