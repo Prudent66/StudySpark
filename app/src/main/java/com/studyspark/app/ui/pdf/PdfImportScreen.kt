@@ -79,16 +79,14 @@ fun PdfImportScreen(
     )
     val state by viewModel.uiState.collectAsState()
 
-    // PDF Launcher
     val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) viewModel.extractTextFromPdf(context, uri, "Handout.pdf")
     }
 
-    // NEW: Full-resolution Camera Launcher
     var photoUri by remember { mutableStateOf<Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && photoUri != null) {
-            viewModel.extractTextFromImageUri(context, photoUri!!)
+            viewModel.addPendingImage(photoUri!!)
         }
     }
 
@@ -143,7 +141,7 @@ fun PdfImportScreen(
                 Spacer(modifier = Modifier.weight(1f))
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Extracting text...")
+                Text("Processing...")
                 Spacer(modifier = Modifier.weight(1f))
                 return@Scaffold
             }
@@ -231,14 +229,11 @@ fun PdfImportScreen(
 
                         if (state.questionType == "Essay") {
                             Spacer(modifier = Modifier.height(16.dp))
-                            
-                            // ONLY 2 SLIDERS NOW
                             Text("Main Questions (a, b, c...): ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
                             Slider(value = state.numberOfQuestions.toFloat(), onValueChange = { viewModel.updateNumberOfQuestions(it.roundToInt()) }, valueRange = 1f..10f, steps = 8)
 
-                            Text("Parts per Question (i, ii...): ${state.numberOfParts}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                            Slider(value = state.numberOfParts.toFloat(), onValueChange = { viewModel.updateNumberOfParts(it.roundToInt()) }, valueRange = 0f..3f, steps = 2)
-                            
+                            Text("Max Parts per Question (i, ii...): ${state.numberOfParts}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                            Slider(value = state.numberOfParts.toFloat(), onValueChange = { viewModel.updateNumberOfParts(it.roundToInt()) }, valueRange = 1f..5f, steps = 3)
                         } else {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text("Number of Questions: ${state.numberOfQuestions}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
@@ -268,44 +263,92 @@ fun PdfImportScreen(
 
             } else {
                 Spacer(modifier = Modifier.weight(1f))
-                Icon(imageVector = Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.height(80.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Import Handout", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Choose a PDF or take a clear photo of your handout.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                Spacer(modifier = Modifier.height(32.dp))
                 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                if (state.pendingImages.isEmpty()) {
+                    Icon(imageVector = Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.height(80.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "Import Handout", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "Choose a PDF or take photos of your handout.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Spacer(modifier = Modifier.height(32.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = { pdfLauncher.launch("application/pdf") },
+                            modifier = Modifier.weight(1f).height(60.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Filled.PictureAsPdf, contentDescription = null)
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            Text("PDF File")
+                        }
+                        
+                        Button(
+                            onClick = { 
+                                val tempFile = File.createTempFile("camera_", ".jpg", context.cacheDir)
+                                photoUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+                                cameraLauncher.launch(photoUri) 
+                            },
+                            modifier = Modifier.weight(1f).height(60.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Icon(Icons.Filled.CameraAlt, contentDescription = null)
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            Text("Take Photo")
+                        }
+                    }
+                } else {
+                    Icon(Icons.Filled.CameraAlt, contentDescription = null, modifier = Modifier.height(60.dp), tint = MaterialTheme.colorScheme.secondary)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "${state.pendingImages.size} Photos Captured", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "You can take more photos or process them all together.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
                     Button(
-                        onClick = { pdfLauncher.launch("application/pdf") },
-                        modifier = Modifier.weight(1f).height(60.dp),
+                        onClick = { viewModel.processPendingImages(context) },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Icon(Icons.Filled.PictureAsPdf, contentDescription = null)
+                        Icon(Icons.Filled.AutoAwesome, contentDescription = null)
                         Spacer(modifier = Modifier.padding(4.dp))
-                        Text("PDF File")
+                        Text("Extract Text from All Photos")
                     }
                     
-                    Button(
-                        onClick = { 
-                            // NEW: Full res camera setup
-                            val tempFile = File.createTempFile("camera_", ".jpg", context.cacheDir)
-                            photoUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
-                            cameraLauncher.launch(photoUri) 
-                        },
-                        modifier = Modifier.weight(1f).height(60.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary
-                        )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(Icons.Filled.CameraAlt, contentDescription = null)
-                        Spacer(modifier = Modifier.padding(4.dp))
-                        Text("Take Photo")
+                        OutlinedButton(
+                            onClick = { 
+                                val tempFile = File.createTempFile("camera_", ".jpg", context.cacheDir)
+                                photoUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+                                cameraLauncher.launch(photoUri) 
+                            },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Filled.CameraAlt, contentDescription = null)
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            Text("Add Another")
+                        }
+
+                        OutlinedButton(
+                            onClick = { viewModel.clearPendingImages() },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Clear All")
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.weight(1f))
