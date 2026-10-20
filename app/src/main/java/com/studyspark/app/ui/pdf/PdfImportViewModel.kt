@@ -35,10 +35,11 @@ data class PdfImportUiState(
     val generatedQuestions: List<DraftQuestion> = emptyList(),
     val errorMessage: String? = null,
     val questionType: String = "Objectives", 
-    val numberOfQuestions: Int = 3, // Main questions (a, b, c)
-    val numberOfParts: Int = 2,     // Parts (i, ii, iii)
+    val numberOfQuestions: Int = 3, 
+    val numberOfParts: Int = 3,     
     
-    // PDF Header State
+    val pendingImages: List<Uri> = emptyList(), // NEW: Queue for camera photos
+    
     val showHeaderDialog: Boolean = false,
     val schoolName: String = "StudySpark University",
     val department: String = "Department of Computer Science",
@@ -72,7 +73,7 @@ class PdfImportViewModel(
     }
 
     fun updateNumberOfQuestions(count: Int) { _uiState.value = _uiState.value.copy(numberOfQuestions = count.coerceIn(1, _uiState.value.maxQuestionsAllowed)) }
-    fun updateNumberOfParts(count: Int) { _uiState.value = _uiState.value.copy(numberOfParts = count.coerceIn(0, 3)) } // Min 0, Max 3
+    fun updateNumberOfParts(count: Int) { _uiState.value = _uiState.value.copy(numberOfParts = count.coerceIn(1, 5)) }
 
     fun showHeaderDialog(show: Boolean) { _uiState.value = _uiState.value.copy(showHeaderDialog = show) }
     fun updateSchoolName(name: String) { _uiState.value = _uiState.value.copy(schoolName = name) }
@@ -83,6 +84,51 @@ class PdfImportViewModel(
     fun updateExamTitle(title: String) { _uiState.value = _uiState.value.copy(examTitle = title) }
     fun updateInstructions(inst: String) { _uiState.value = _uiState.value.copy(instructions = inst) }
 
+    // --- MULTI-IMAGE CAMERA LOGIC ---
+    fun addPendingImage(uri: Uri) {
+        val currentList = _uiState.value.pendingImages.toMutableList()
+        currentList.add(uri)
+        _uiState.value = _uiState.value.copy(pendingImages = currentList, errorMessage = null)
+    }
+
+    fun clearPendingImages() {
+        _uiState.value = _uiState.value.copy(pendingImages = emptyList())
+    }
+
+    fun processPendingImages(context: Context) {
+        val uris = _uiState.value.pendingImages
+        if (uris.isEmpty()) return
+
+        _uiState.value = _uiState.value.copy(isLoadingPdf = true, fileName = "Camera_Photos", errorMessage = null)
+
+        viewModelScope.launch {
+            try {
+                val fullText = StringBuilder()
+                withContext(Dispatchers.IO) {
+                    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                    for (uri in uris) {
+                        val image = InputImage.fromFilePath(context, uri)
+                        val result = recognizer.process(image).await()
+                        fullText.append(result.text).append("\n\n")
+                    }
+                }
+                
+                if (fullText.isBlank()) {
+                    _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "No text found in the images.")
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingPdf = false, 
+                        extractedText = fullText.toString().trim(),
+                        pendingImages = emptyList() // Clear after processing
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "Failed to read images: ${e.message}")
+            }
+        }
+    }
+
+    // --- PDF EXTRACTION ---
     fun extractTextFromPdf(context: Context, uri: Uri, fileName: String) {
         _uiState.value = _uiState.value.copy(isLoadingPdf = true, fileName = fileName, errorMessage = null)
 
@@ -140,40 +186,15 @@ class PdfImportViewModel(
                 page.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 page.close()
 
-                builder.append(performOcr(bitmap)).append("\n")
+                val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                val image = InputImage.fromBitmap(bitmap, 0)
+                builder.append(recognizer.process(image).await().text).append("\n")
             }
         } finally {
             renderer.close()
             descriptor.close()
         }
         return builder.toString()
-    }
-
-    // NEW: Full-resolution camera image extraction
-    fun extractTextFromImageUri(context: Context, uri: Uri) {
-        _uiState.value = _uiState.value.copy(isLoadingPdf = true, fileName = "Camera_Photo", errorMessage = null)
-        viewModelScope.launch {
-            try {
-                val text = withContext(Dispatchers.IO) {
-                    val image = InputImage.fromFilePath(context, uri)
-                    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                    recognizer.process(image).await().text
-                }
-                if (text.isBlank()) {
-                    _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "No text found in the image.")
-                } else {
-                    _uiState.value = _uiState.value.copy(isLoadingPdf = false, extractedText = text.trim())
-                }
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isLoadingPdf = false, errorMessage = "Failed to read image: ${e.message}")
-            }
-        }
-    }
-
-    private suspend fun performOcr(bitmap: android.graphics.Bitmap): String {
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-        val image = InputImage.fromBitmap(bitmap, 0)
-        return recognizer.process(image).await().text
     }
 
     fun generateQuestionsWithAi() {
@@ -188,7 +209,7 @@ class PdfImportViewModel(
                     geminiRepository.generateQuestionsFromText(
                         extractedText = state.extractedText,
                         numberOfQuestions = state.numberOfQuestions,
-                        numberOfParts = state.numberOfParts,
+                        maxPartsPerQuestion = state.numberOfParts, 
                         questionType = state.questionType
                     )
                 }
