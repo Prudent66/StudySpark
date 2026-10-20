@@ -38,7 +38,7 @@ data class PdfImportUiState(
     val numberOfQuestions: Int = 3, 
     val numberOfParts: Int = 3,     
     
-    val pendingImages: List<Uri> = emptyList(), // NEW: Queue for camera photos
+    val pendingImages: List<Uri> = emptyList(), 
     
     val showHeaderDialog: Boolean = false,
     val schoolName: String = "StudySpark University",
@@ -84,7 +84,6 @@ class PdfImportViewModel(
     fun updateExamTitle(title: String) { _uiState.value = _uiState.value.copy(examTitle = title) }
     fun updateInstructions(inst: String) { _uiState.value = _uiState.value.copy(instructions = inst) }
 
-    // --- MULTI-IMAGE CAMERA LOGIC ---
     fun addPendingImage(uri: Uri) {
         val currentList = _uiState.value.pendingImages.toMutableList()
         currentList.add(uri)
@@ -119,7 +118,7 @@ class PdfImportViewModel(
                     _uiState.value = _uiState.value.copy(
                         isLoadingPdf = false, 
                         extractedText = fullText.toString().trim(),
-                        pendingImages = emptyList() // Clear after processing
+                        pendingImages = emptyList()
                     )
                 }
             } catch (e: Exception) {
@@ -128,7 +127,6 @@ class PdfImportViewModel(
         }
     }
 
-    // --- PDF EXTRACTION ---
     fun extractTextFromPdf(context: Context, uri: Uri, fileName: String) {
         _uiState.value = _uiState.value.copy(isLoadingPdf = true, fileName = fileName, errorMessage = null)
 
@@ -205,11 +203,12 @@ class PdfImportViewModel(
 
         viewModelScope.launch {
             try {
+                // FIXED: Changed maxPartsPerQuestion to numberOfParts to match the Repository
                 val questions = withTimeoutOrNull(90_000L) { 
                     geminiRepository.generateQuestionsFromText(
                         extractedText = state.extractedText,
                         numberOfQuestions = state.numberOfQuestions,
-                        maxPartsPerQuestion = state.numberOfParts, 
+                        numberOfParts = state.numberOfParts, 
                         questionType = state.questionType
                     )
                 }
